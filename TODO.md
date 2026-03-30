@@ -16,19 +16,19 @@
 
 ## Phase 1: Menu Bar Shell And Keyboard Overlay MVP
 
-- [ ] Convert the app into a menu bar utility with `LSUIElement`.
-- [ ] Add a shared app coordinator and app container.
-- [ ] Add a settings window that can be opened programmatically.
-- [ ] Add a menu bar menu with capture toggle, settings entry, permission action, and quit action.
-- [ ] Add a permission manager abstraction for production and test modes.
-- [ ] Add an event tap service abstraction for production and test modes.
-- [ ] Add a basic overlay window controller.
-- [ ] Add a keystroke formatter for modifier glyphs, plain keys, and common special keys.
-- [ ] Connect capture state to permission checking and event tap lifecycle.
-- [ ] Add UI-test launch handling so the settings window opens automatically in UI tests.
-- [ ] Add UI tests for settings window launch, capture toggle, permission state, and preview flow.
-- [ ] Run Phase 1 tests and fix failures.
-- [ ] Commit Phase 1.
+- [x] Convert the app into a menu bar utility with `LSUIElement`.
+- [x] Add a shared app coordinator and app container.
+- [x] Add a settings window that can be opened programmatically.
+- [x] Add a menu bar menu with capture toggle, settings entry, permission action, and quit action.
+- [x] Add a permission manager abstraction for production and test modes.
+- [x] Add an event tap service abstraction for production and test modes.
+- [x] Add a basic overlay window controller.
+- [x] Add a keystroke formatter for modifier glyphs, plain keys, and common special keys.
+- [x] Connect capture state to permission checking and event tap lifecycle.
+- [x] Add UI-test launch handling so the settings window opens automatically in UI tests.
+- [x] Add UI tests for settings window launch, capture toggle, permission state, and preview flow.
+- [x] Run Phase 1 tests and fix failures.
+- [x] Commit Phase 1.
 
 ## Phase 1.1: Settings, Persistence, And Display Modes
 
