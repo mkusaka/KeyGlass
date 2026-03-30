@@ -142,6 +142,20 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertEqual(lastSettings.fadeDuration, 0.4, accuracy: 0.001)
     }
 
+    func testTranslatedPreviewUsesFormatterTranslation() {
+        let overlayPresenter = RecordingOverlayPresenter()
+        let formatter = KeystrokeFormatter(translator: StubKeyTranslator(values: [0: "あ"]))
+        let coordinator = makeCoordinator(
+            overlayPresenter: overlayPresenter,
+            formatter: formatter
+        )
+
+        coordinator.previewPlainA()
+
+        XCTAssertEqual(coordinator.lastPresentedText, "あ")
+        XCTAssertEqual(overlayPresenter.lastText, "あ")
+    }
+
     func testPermissionRequiredStatePreventsCaptureStart() {
         let settingsStore = SettingsStore(defaults: defaults)
         let coordinator = AppCoordinator(
@@ -164,7 +178,10 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertEqual(coordinator.captureStatusDescription, "Permission required")
     }
 
-    private func makeCoordinator(overlayPresenter: RecordingOverlayPresenter = RecordingOverlayPresenter()) -> AppCoordinator {
+    private func makeCoordinator(
+        overlayPresenter: RecordingOverlayPresenter = RecordingOverlayPresenter(),
+        formatter: KeystrokeFormatter? = nil
+    ) -> AppCoordinator {
         AppCoordinator(
             launchConfiguration: LaunchConfiguration(
                 isUITestMode: true,
@@ -175,7 +192,7 @@ final class KeyGlassHostedUITests: XCTestCase {
             settingsStore: SettingsStore(defaults: defaults),
             permissionManager: StubInputPermissionManager(state: .granted),
             eventTapService: NoOpEventTapService(),
-            formatter: KeystrokeFormatter(),
+            formatter: formatter ?? KeystrokeFormatter(),
             overlayWindowController: overlayPresenter
         )
     }

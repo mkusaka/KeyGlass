@@ -44,14 +44,14 @@
 
 ## Phase 2: Layout-Aware Formatting And Input Source Handling
 
-- [ ] Add active keyboard layout loading.
-- [ ] Add layout-aware character translation with macOS keyboard layout APIs.
-- [ ] Add input source change observation and formatter refresh.
-- [ ] Expand special-key coverage including function keys and JIS-related keys where available.
-- [ ] Add unit tests for formatter behavior across representative inputs.
-- [ ] Add UI tests that cover the user-visible results of formatter preview scenarios.
-- [ ] Run Phase 2 tests and fix failures.
-- [ ] Commit Phase 2.
+- [x] Add active keyboard layout loading.
+- [x] Add layout-aware character translation with macOS keyboard layout APIs.
+- [x] Add input source change observation and formatter refresh.
+- [x] Expand special-key coverage including function keys and JIS-related keys where available.
+- [x] Add unit tests for formatter behavior across representative inputs.
+- [x] Add UI tests that cover the user-visible results of formatter preview scenarios.
+- [x] Run Phase 2 tests and fix failures.
+- [x] Commit Phase 2.
 
 ## Phase 3: Mouse Visualization And Multi-Display Behavior
 
