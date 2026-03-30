@@ -98,6 +98,7 @@ final class KeyGlassHostedUITests: XCTestCase {
         settingsStore.overlayOpacity = 0.75
         settingsStore.fadeDelay = 1.8
         settingsStore.fadeDuration = 0.35
+        settingsStore.showMouseClicks = true
 
         let reloadedStore = SettingsStore(defaults: defaults)
         XCTAssertEqual(reloadedStore.displayMode, .modifierOnly)
@@ -106,6 +107,7 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertEqual(reloadedStore.overlayOpacity, 0.75, accuracy: 0.001)
         XCTAssertEqual(reloadedStore.fadeDelay, 1.8, accuracy: 0.001)
         XCTAssertEqual(reloadedStore.fadeDuration, 0.35, accuracy: 0.001)
+        XCTAssertTrue(reloadedStore.showMouseClicks)
     }
 
     func testOverlaySettingsFlowIntoPresenter() throws {
@@ -154,6 +156,33 @@ final class KeyGlassHostedUITests: XCTestCase {
 
         XCTAssertEqual(coordinator.lastPresentedText, "あ")
         XCTAssertEqual(overlayPresenter.lastText, "あ")
+    }
+
+    func testMousePreviewRequiresSettingAndPersistsWhenEnabled() {
+        let overlayPresenter = RecordingOverlayPresenter()
+        let settingsStore = SettingsStore(defaults: defaults)
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: StubInputPermissionManager(state: .granted),
+            eventTapService: NoOpEventTapService(),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: overlayPresenter
+        )
+
+        coordinator.previewLeftClick()
+        XCTAssertEqual(coordinator.lastPresentedText, "No input yet")
+        XCTAssertNil(overlayPresenter.lastText)
+
+        settingsStore.showMouseClicks = true
+        coordinator.previewLeftClick()
+        XCTAssertEqual(coordinator.lastPresentedText, "L Click")
+        XCTAssertEqual(overlayPresenter.lastText, "L Click")
     }
 
     func testPermissionRequiredStatePreventsCaptureStart() {

@@ -22,6 +22,52 @@ protocol OverlayPresenting: AnyObject {
     func show(text: String, settings: OverlayPresentationSettings)
 }
 
+struct OverlayScreenSnapshot: Equatable {
+    let frame: CGRect
+    let visibleFrame: CGRect
+}
+
+enum OverlayPlacementCalculator {
+    static func targetVisibleFrame(mouseLocation: CGPoint, screens: [OverlayScreenSnapshot]) -> CGRect? {
+        screens.first(where: { $0.frame.contains(mouseLocation) })?.visibleFrame ?? screens.first?.visibleFrame
+    }
+
+    static func origin(for anchor: OverlayAnchor, size: CGSize, visibleFrame: CGRect) -> CGPoint {
+        switch anchor {
+        case .topCenter:
+            return CGPoint(
+                x: visibleFrame.midX - size.width / 2,
+                y: visibleFrame.maxY - size.height - 24
+            )
+        case .bottomCenter:
+            return CGPoint(
+                x: visibleFrame.midX - size.width / 2,
+                y: visibleFrame.minY + 24
+            )
+        case .topLeft:
+            return CGPoint(
+                x: visibleFrame.minX + 24,
+                y: visibleFrame.maxY - size.height - 24
+            )
+        case .topRight:
+            return CGPoint(
+                x: visibleFrame.maxX - size.width - 24,
+                y: visibleFrame.maxY - size.height - 24
+            )
+        case .bottomLeft:
+            return CGPoint(
+                x: visibleFrame.minX + 24,
+                y: visibleFrame.minY + 24
+            )
+        case .bottomRight:
+            return CGPoint(
+                x: visibleFrame.maxX - size.width - 24,
+                y: visibleFrame.minY + 24
+            )
+        }
+    }
+}
+
 final class OverlayWindowController: OverlayPresenting {
     private var window: NSPanel?
     private var visualEffectView: NSVisualEffectView?
@@ -105,44 +151,19 @@ final class OverlayWindowController: OverlayPresenting {
     }
 
     private func updateWindowFrame(window: NSPanel, settings: OverlayPresentationSettings) {
-        guard let screen = NSScreen.main else { return }
-
         let size = NSSize(width: 360, height: 92)
-        let visibleFrame = screen.visibleFrame
-        let origin: CGPoint
-
-        switch settings.overlayAnchor {
-        case .topCenter:
-            origin = CGPoint(
-                x: visibleFrame.midX - size.width / 2,
-                y: visibleFrame.maxY - size.height - 24
-            )
-        case .bottomCenter:
-            origin = CGPoint(
-                x: visibleFrame.midX - size.width / 2,
-                y: visibleFrame.minY + 24
-            )
-        case .topLeft:
-            origin = CGPoint(
-                x: visibleFrame.minX + 24,
-                y: visibleFrame.maxY - size.height - 24
-            )
-        case .topRight:
-            origin = CGPoint(
-                x: visibleFrame.maxX - size.width - 24,
-                y: visibleFrame.maxY - size.height - 24
-            )
-        case .bottomLeft:
-            origin = CGPoint(
-                x: visibleFrame.minX + 24,
-                y: visibleFrame.minY + 24
-            )
-        case .bottomRight:
-            origin = CGPoint(
-                x: visibleFrame.maxX - size.width - 24,
-                y: visibleFrame.minY + 24
-            )
+        let screens = NSScreen.screens.map { screen in
+            OverlayScreenSnapshot(frame: screen.frame, visibleFrame: screen.visibleFrame)
         }
+        guard let visibleFrame = OverlayPlacementCalculator.targetVisibleFrame(
+            mouseLocation: NSEvent.mouseLocation,
+            screens: screens
+        ) else { return }
+        let origin = OverlayPlacementCalculator.origin(
+            for: settings.overlayAnchor,
+            size: size,
+            visibleFrame: visibleFrame
+        )
 
         window.setFrame(NSRect(origin: origin, size: size), display: true)
     }

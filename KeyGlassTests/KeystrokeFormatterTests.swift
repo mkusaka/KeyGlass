@@ -74,4 +74,15 @@ final class KeystrokeFormatterTests: XCTestCase {
 
         XCTAssertEqual(result, "⌘K")
     }
+
+    func testMouseClicksAreRenderedExplicitly() {
+        let formatter = KeystrokeFormatter(translator: StubKeyTranslator(values: [:]))
+
+        let result = formatter.string(
+            for: CapturedInput(kind: .leftMouseDown, keyCode: 0, modifierFlags: []),
+            displayMode: .allKeys
+        )
+
+        XCTAssertEqual(result, "L Click")
+    }
 }

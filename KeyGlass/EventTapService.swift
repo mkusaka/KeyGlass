@@ -11,6 +11,9 @@ struct CapturedInput: Equatable {
 enum CapturedInputKind: Equatable {
     case keyDown
     case flagsChanged
+    case leftMouseDown
+    case rightMouseDown
+    case otherMouseDown
 }
 
 enum EventTapError: Error, LocalizedError {
@@ -68,7 +71,11 @@ final class SystemEventTapService: EventTapServicing {
         }
 
         let keyMask = CGEventMask(1 << CGEventType.keyDown.rawValue)
-        let flagsMask = CGEventMask(1 << CGEventType.flagsChanged.rawValue)
+        let flagsMask =
+            CGEventMask(1 << CGEventType.flagsChanged.rawValue) |
+            CGEventMask(1 << CGEventType.leftMouseDown.rawValue) |
+            CGEventMask(1 << CGEventType.rightMouseDown.rawValue) |
+            CGEventMask(1 << CGEventType.otherMouseDown.rawValue)
 
         let keyTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
@@ -165,6 +172,33 @@ final class SystemEventTapService: EventTapServicing {
                     kind: .flagsChanged,
                     keyCode: UInt16(event.getIntegerValueField(.keyboardEventKeycode)),
                     modifierFlags: NSEvent.ModifierFlags(rawValue: UInt(event.flags.rawValue))
+                )
+            )
+
+        case .leftMouseDown:
+            handler?(
+                CapturedInput(
+                    kind: .leftMouseDown,
+                    keyCode: 0,
+                    modifierFlags: []
+                )
+            )
+
+        case .rightMouseDown:
+            handler?(
+                CapturedInput(
+                    kind: .rightMouseDown,
+                    keyCode: 0,
+                    modifierFlags: []
+                )
+            )
+
+        case .otherMouseDown:
+            handler?(
+                CapturedInput(
+                    kind: .otherMouseDown,
+                    keyCode: 0,
+                    modifierFlags: []
                 )
             )
 

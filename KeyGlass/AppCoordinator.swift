@@ -124,6 +124,16 @@ final class AppCoordinator: NSObject, ObservableObject {
         )
     }
 
+    func previewLeftClick() {
+        presentCapturedInput(
+            CapturedInput(
+                kind: .leftMouseDown,
+                keyCode: 0,
+                modifierFlags: []
+            )
+        )
+    }
+
     @objc
     func handleOpenSettingsMenuAction(_ sender: Any?) {
         openSettings()
@@ -196,6 +206,13 @@ final class AppCoordinator: NSObject, ObservableObject {
     private func presentCapturedInput(_ capturedInput: CapturedInput) {
         guard let text = formatter.string(for: capturedInput, displayMode: settingsStore.displayMode) else {
             return
+        }
+
+        switch capturedInput.kind {
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+            guard settingsStore.showMouseClicks else { return }
+        case .keyDown, .flagsChanged:
+            break
         }
 
         lastPresentedText = text

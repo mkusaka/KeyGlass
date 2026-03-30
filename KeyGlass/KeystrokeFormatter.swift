@@ -153,6 +153,15 @@ final class KeystrokeFormatter {
 
     func string(for capturedInput: CapturedInput, displayMode: DisplayMode) -> String? {
         switch capturedInput.kind {
+        case .leftMouseDown:
+            return "L Click"
+
+        case .rightMouseDown:
+            return "R Click"
+
+        case .otherMouseDown:
+            return "Click"
+
         case .flagsChanged:
             let modifiers = modifierGlyphs(from: capturedInput.modifierFlags)
             return modifiers.isEmpty ? nil : modifiers

@@ -82,6 +82,10 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(displayMode.rawValue, forKey: Keys.displayMode) }
     }
 
+    @Published var showMouseClicks: Bool {
+        didSet { defaults.set(showMouseClicks, forKey: Keys.showMouseClicks) }
+    }
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults) {
@@ -93,6 +97,7 @@ final class SettingsStore: ObservableObject {
         self.fadeDelay = defaults.object(forKey: Keys.fadeDelay) as? Double ?? 1.2
         self.fadeDuration = defaults.object(forKey: Keys.fadeDuration) as? Double ?? 0.22
         self.displayMode = DisplayMode(rawValue: defaults.string(forKey: Keys.displayMode) ?? "") ?? .allKeys
+        self.showMouseClicks = defaults.object(forKey: Keys.showMouseClicks) as? Bool ?? false
     }
 
     private enum Keys {
@@ -103,5 +108,6 @@ final class SettingsStore: ObservableObject {
         static let fadeDelay = "fadeDelay"
         static let fadeDuration = "fadeDuration"
         static let displayMode = "displayMode"
+        static let showMouseClicks = "showMouseClicks"
     }
 }

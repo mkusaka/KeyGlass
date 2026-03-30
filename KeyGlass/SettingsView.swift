@@ -68,11 +68,11 @@ struct SettingsView: View {
                     .font(.title3.monospaced())
                     .accessibilityIdentifier("last-output-value")
 
-                HStack {
-                    Button("Preview A") {
-                        coordinator.previewPlainA()
-                    }
-                    .accessibilityIdentifier("preview-a-button")
+	                HStack {
+	                    Button("Preview A") {
+	                        coordinator.previewPlainA()
+	                    }
+	                    .accessibilityIdentifier("preview-a-button")
 
                     Button("Preview Command-K") {
                         coordinator.previewCommandK()
@@ -84,12 +84,17 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("preview-shift-tab-button")
 
-                    Button("Preview Shift") {
-                        coordinator.previewModifierOnly()
-                    }
-                    .accessibilityIdentifier("preview-shift-button")
-                }
-            }
+	                    Button("Preview Shift") {
+	                        coordinator.previewModifierOnly()
+	                    }
+	                    .accessibilityIdentifier("preview-shift-button")
+
+	                    Button("Preview Left Click") {
+	                        coordinator.previewLeftClick()
+	                    }
+	                    .accessibilityIdentifier("preview-left-click-button")
+	                }
+	            }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -108,10 +113,13 @@ struct SettingsView: View {
                     ForEach(OverlayAnchor.allCases) { anchor in
                         Text(anchor.title).tag(anchor)
                     }
-                }
-                .accessibilityIdentifier("overlay-anchor-picker")
+	                }
+	                .accessibilityIdentifier("overlay-anchor-picker")
 
-                settingSlider(
+	                Toggle("Show Mouse Clicks", isOn: $settingsStore.showMouseClicks)
+	                    .accessibilityIdentifier("show-mouse-clicks-toggle")
+
+	                settingSlider(
                     title: "Font Size",
                     value: $settingsStore.overlayFontSize,
                     range: 18...48,
