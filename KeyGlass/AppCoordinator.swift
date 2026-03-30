@@ -104,6 +104,16 @@ final class AppCoordinator: NSObject, ObservableObject {
         )
     }
 
+    func previewPlainA() {
+        presentCapturedInput(
+            CapturedInput(
+                kind: .keyDown,
+                keyCode: 0,
+                modifierFlags: []
+            )
+        )
+    }
+
     func previewModifierOnly() {
         presentCapturedInput(
             CapturedInput(

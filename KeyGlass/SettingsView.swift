@@ -9,6 +9,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 20) {
                 header
                 captureSection
+                displaySection
                 previewSection
             }
             .padding(24)
@@ -68,6 +69,11 @@ struct SettingsView: View {
                     .accessibilityIdentifier("last-output-value")
 
                 HStack {
+                    Button("Preview A") {
+                        coordinator.previewPlainA()
+                    }
+                    .accessibilityIdentifier("preview-a-button")
+
                     Button("Preview Command-K") {
                         coordinator.previewCommandK()
                     }
@@ -88,6 +94,58 @@ struct SettingsView: View {
         }
     }
 
+    private var displaySection: some View {
+        GroupBox("Display") {
+            VStack(alignment: .leading, spacing: 16) {
+                Picker("Display Mode", selection: $settingsStore.displayMode) {
+                    ForEach(DisplayMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .accessibilityIdentifier("display-mode-picker")
+
+                Picker("Overlay Position", selection: $settingsStore.overlayAnchor) {
+                    ForEach(OverlayAnchor.allCases) { anchor in
+                        Text(anchor.title).tag(anchor)
+                    }
+                }
+                .accessibilityIdentifier("overlay-anchor-picker")
+
+                settingSlider(
+                    title: "Font Size",
+                    value: $settingsStore.overlayFontSize,
+                    range: 18...48,
+                    identifier: "font-size-slider"
+                )
+
+                settingSlider(
+                    title: "Opacity",
+                    value: $settingsStore.overlayOpacity,
+                    range: 0.4...1.0,
+                    step: 0.05,
+                    identifier: "opacity-slider"
+                )
+
+                settingSlider(
+                    title: "Fade Delay",
+                    value: $settingsStore.fadeDelay,
+                    range: 0.2...2.5,
+                    step: 0.1,
+                    identifier: "fade-delay-slider"
+                )
+
+                settingSlider(
+                    title: "Fade Duration",
+                    value: $settingsStore.fadeDuration,
+                    range: 0.1...1.0,
+                    step: 0.05,
+                    identifier: "fade-duration-slider"
+                )
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     private func statusRow(title: String, value: String, identifier: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
@@ -97,6 +155,30 @@ struct SettingsView: View {
 
             Text(value)
                 .monospaced()
+                .accessibilityIdentifier(identifier)
+        }
+    }
+
+    private func settingSlider(
+        title: String,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        step: Double = 1,
+        identifier: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Text(value.wrappedValue, format: .number.precision(.fractionLength(2)))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+
+            Slider(value: value, in: range, step: step)
                 .accessibilityIdentifier(identifier)
         }
     }

@@ -32,15 +32,15 @@
 
 ## Phase 1.1: Settings, Persistence, And Display Modes
 
-- [ ] Add a persistent settings store for enabled state and overlay configuration.
-- [ ] Add overlay position options and persistence.
-- [ ] Add font size, opacity, fade delay, and fade duration controls.
-- [ ] Add display mode selection for modifier-only, modified keys, and all keys.
-- [ ] Add preview actions for representative keystrokes.
-- [ ] Reflect settings changes in overlay behavior.
-- [ ] Add UI tests for persistence-backed settings and display mode changes.
-- [ ] Run Phase 1.1 tests and fix failures.
-- [ ] Commit Phase 1.1.
+- [x] Add a persistent settings store for enabled state and overlay configuration.
+- [x] Add overlay position options and persistence.
+- [x] Add font size, opacity, fade delay, and fade duration controls.
+- [x] Add display mode selection for modifier-only, modified keys, and all keys.
+- [x] Add preview actions for representative keystrokes.
+- [x] Reflect settings changes in overlay behavior.
+- [x] Add UI tests for persistence-backed settings and display mode changes.
+- [x] Run Phase 1.1 tests and fix failures.
+- [x] Commit Phase 1.1.
 
 ## Phase 2: Layout-Aware Formatting And Input Source Handling
 
