@@ -75,6 +75,17 @@ final class KeystrokeFormatterTests: XCTestCase {
         XCTAssertEqual(result, "⌘K")
     }
 
+    func testFallbackMapKeepsShortcutReadableWhenTranslatorReturnsNil() {
+        let formatter = KeystrokeFormatter(translator: StubKeyTranslator(values: [:]))
+
+        let result = formatter.string(
+            for: CapturedInput(kind: .keyDown, keyCode: 40, modifierFlags: [.command]),
+            displayMode: .allKeys
+        )
+
+        XCTAssertEqual(result, "⌘K")
+    }
+
     func testMouseClicksAreRenderedExplicitly() {
         let formatter = KeystrokeFormatter(translator: StubKeyTranslator(values: [:]))
 

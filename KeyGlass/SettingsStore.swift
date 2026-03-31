@@ -59,7 +59,12 @@ final class SettingsStore: ObservableObject {
     }
 
     @Published var overlayAnchor: OverlayAnchor {
-        didSet { defaults.set(overlayAnchor.rawValue, forKey: Keys.overlayAnchor) }
+        didSet {
+            defaults.set(overlayAnchor.rawValue, forKey: Keys.overlayAnchor)
+            if customOverlayOrigin != nil {
+                customOverlayOrigin = nil
+            }
+        }
     }
 
     @Published var overlayOpacity: Double {
@@ -86,6 +91,14 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(showMouseClicks, forKey: Keys.showMouseClicks) }
     }
 
+    @Published var hasPromptedForInputMonitoring: Bool {
+        didSet { defaults.set(hasPromptedForInputMonitoring, forKey: Keys.hasPromptedForInputMonitoring) }
+    }
+
+    @Published var customOverlayOrigin: CGPoint? {
+        didSet { persistCustomOverlayOrigin(customOverlayOrigin) }
+    }
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults) {
@@ -93,11 +106,13 @@ final class SettingsStore: ObservableObject {
         self.captureEnabled = defaults.object(forKey: Keys.captureEnabled) as? Bool ?? false
         self.overlayAnchor = OverlayAnchor(rawValue: defaults.string(forKey: Keys.overlayAnchor) ?? "") ?? .topCenter
         self.overlayOpacity = defaults.object(forKey: Keys.overlayOpacity) as? Double ?? 0.94
-        self.overlayFontSize = defaults.object(forKey: Keys.overlayFontSize) as? Double ?? 28
+        self.overlayFontSize = defaults.object(forKey: Keys.overlayFontSize) as? Double ?? 22
         self.fadeDelay = defaults.object(forKey: Keys.fadeDelay) as? Double ?? 1.2
         self.fadeDuration = defaults.object(forKey: Keys.fadeDuration) as? Double ?? 0.22
-        self.displayMode = DisplayMode(rawValue: defaults.string(forKey: Keys.displayMode) ?? "") ?? .allKeys
+        self.displayMode = DisplayMode(rawValue: defaults.string(forKey: Keys.displayMode) ?? "") ?? .modifiedKeys
         self.showMouseClicks = defaults.object(forKey: Keys.showMouseClicks) as? Bool ?? false
+        self.hasPromptedForInputMonitoring = defaults.object(forKey: Keys.hasPromptedForInputMonitoring) as? Bool ?? false
+        self.customOverlayOrigin = Self.loadCustomOverlayOrigin(defaults: defaults)
     }
 
     private enum Keys {
@@ -109,5 +124,36 @@ final class SettingsStore: ObservableObject {
         static let fadeDuration = "fadeDuration"
         static let displayMode = "displayMode"
         static let showMouseClicks = "showMouseClicks"
+        static let hasPromptedForInputMonitoring = "hasPromptedForInputMonitoring"
+        static let customOverlayOriginX = "customOverlayOriginX"
+        static let customOverlayOriginY = "customOverlayOriginY"
+    }
+
+    private func persistCustomOverlayOrigin(_ point: CGPoint?) {
+        if let point {
+            defaults.set(point.x, forKey: Keys.customOverlayOriginX)
+            defaults.set(point.y, forKey: Keys.customOverlayOriginY)
+        } else {
+            defaults.removeObject(forKey: Keys.customOverlayOriginX)
+            defaults.removeObject(forKey: Keys.customOverlayOriginY)
+        }
+    }
+
+    private static func loadCustomOverlayOrigin(defaults: UserDefaults) -> CGPoint? {
+        guard
+            defaults.object(forKey: Keys.customOverlayOriginX) != nil,
+            defaults.object(forKey: Keys.customOverlayOriginY) != nil
+        else {
+            return nil
+        }
+
+        return CGPoint(
+            x: defaults.double(forKey: Keys.customOverlayOriginX),
+            y: defaults.double(forKey: Keys.customOverlayOriginY)
+        )
+    }
+
+    func resetCustomOverlayOrigin() {
+        customOverlayOrigin = nil
     }
 }

@@ -7,6 +7,7 @@ struct OverlayPresentationSettings {
     let overlayFontSize: Double
     let fadeDelay: Double
     let fadeDuration: Double
+    let customOrigin: CGPoint?
 
     @MainActor
     init(from settingsStore: SettingsStore) {
@@ -15,6 +16,7 @@ struct OverlayPresentationSettings {
         self.overlayFontSize = settingsStore.overlayFontSize
         self.fadeDelay = settingsStore.fadeDelay
         self.fadeDuration = settingsStore.fadeDuration
+        self.customOrigin = settingsStore.customOverlayOrigin
     }
 }
 
@@ -69,10 +71,16 @@ enum OverlayPlacementCalculator {
 }
 
 final class OverlayWindowController: OverlayPresenting {
+    var onPositionChange: ((CGPoint) -> Void)?
+
     private var window: NSPanel?
     private var visualEffectView: NSVisualEffectView?
     private var label: NSTextField?
     private var pendingFadeWorkItem: DispatchWorkItem?
+
+    var testingWindow: NSWindow? {
+        window
+    }
 
     func show(text: String, settings: OverlayPresentationSettings) {
         let window = makeWindowIfNeeded()
@@ -80,6 +88,19 @@ final class OverlayWindowController: OverlayPresenting {
 
         label.stringValue = text
         label.font = .monospacedSystemFont(ofSize: settings.overlayFontSize, weight: .semibold)
+        label.sizeToFit()
+        let contentSize = label.fittingSize
+        let windowSize = CGSize(
+            width: min(max(contentSize.width + 40, 140), 320),
+            height: max(contentSize.height + 28, 60)
+        )
+        window.setContentSize(windowSize)
+        label.frame = CGRect(
+            x: 20,
+            y: (windowSize.height - contentSize.height) / 2,
+            width: windowSize.width - 40,
+            height: contentSize.height
+        )
         visualEffectView?.alphaValue = settings.overlayOpacity
         updateWindowFrame(window: window, settings: settings)
         pendingFadeWorkItem?.cancel()
@@ -118,7 +139,9 @@ final class OverlayWindowController: OverlayPresenting {
         panel.backgroundColor = .clear
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hasShadow = true
-        panel.ignoresMouseEvents = true
+        panel.ignoresMouseEvents = false
+        panel.isMovableByWindowBackground = true
+        panel.hidesOnDeactivate = false
 
         let visualEffectView = NSVisualEffectView(frame: panel.contentView?.bounds ?? .zero)
         visualEffectView.autoresizingMask = [.width, .height]
@@ -129,6 +152,12 @@ final class OverlayWindowController: OverlayPresenting {
         visualEffectView.layer?.cornerRadius = 16
 
         panel.contentView = visualEffectView
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleWindowDidMove(_:)),
+            name: NSWindow.didMoveNotification,
+            object: panel
+        )
         self.window = panel
         self.visualEffectView = visualEffectView
         return panel
@@ -151,7 +180,12 @@ final class OverlayWindowController: OverlayPresenting {
     }
 
     private func updateWindowFrame(window: NSPanel, settings: OverlayPresentationSettings) {
-        let size = NSSize(width: 360, height: 92)
+        if let customOrigin = settings.customOrigin {
+            window.setFrameOrigin(customOrigin)
+            return
+        }
+
+        let size = window.frame.size
         let screens = NSScreen.screens.map { screen in
             OverlayScreenSnapshot(frame: screen.frame, visibleFrame: screen.visibleFrame)
         }
@@ -166,5 +200,11 @@ final class OverlayWindowController: OverlayPresenting {
         )
 
         window.setFrame(NSRect(origin: origin, size: size), display: true)
+    }
+
+    @objc
+    private func handleWindowDidMove(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        onPositionChange?(window.frame.origin)
     }
 }

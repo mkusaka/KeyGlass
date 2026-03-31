@@ -36,6 +36,12 @@ final class AppCoordinator: NSObject, ObservableObject {
         self.overlayWindowController = overlayWindowController
         self.permissionState = permissionManager.currentState()
         super.init()
+
+        if let overlayWindowController = overlayWindowController as? OverlayWindowController {
+            overlayWindowController.onPositionChange = { [weak settingsStore] origin in
+                settingsStore?.customOverlayOrigin = origin
+            }
+        }
     }
 
     var isCaptureEnabled: Bool {
@@ -62,6 +68,18 @@ final class AppCoordinator: NSObject, ObservableObject {
         configureStatusItemIfNeeded()
         refreshPermissionState()
         syncCaptureState()
+
+        if !launchConfiguration.isUITestMode,
+           !permissionState.isGranted,
+           !settingsStore.hasPromptedForInputMonitoring {
+            settingsStore.hasPromptedForInputMonitoring = true
+            settingsStore.captureEnabled = true
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                self?.openSettings()
+                self?.requestPermission()
+            }
+        }
 
         if launchConfiguration.shouldOpenSettingsOnLaunch {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in

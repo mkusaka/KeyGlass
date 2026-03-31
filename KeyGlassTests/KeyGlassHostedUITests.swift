@@ -158,6 +158,59 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertEqual(overlayPresenter.lastText, "あ")
     }
 
+    func testFirstLaunchPermissionFlowRequestsAccessOnce() {
+        let permissionManager = TrackingPermissionManager(state: .requiresApproval)
+        let settingsStore = SettingsStore(defaults: defaults)
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: false,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: permissionManager,
+            eventTapService: NoOpEventTapService(),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: RecordingOverlayPresenter()
+        )
+
+        coordinator.applicationDidFinishLaunching()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+
+        XCTAssertEqual(permissionManager.requestCount, 1)
+        XCTAssertTrue(settingsStore.hasPromptedForInputMonitoring)
+        XCTAssertTrue(settingsStore.captureEnabled)
+        XCTAssertEqual(coordinator.captureStatusDescription, "Permission required")
+    }
+
+    func testDraggedOverlayPositionPersistsThroughMoveCallback() throws {
+        let settingsStore = SettingsStore(defaults: defaults)
+        let overlayWindowController = OverlayWindowController()
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: StubInputPermissionManager(state: .granted),
+            eventTapService: NoOpEventTapService(),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: overlayWindowController
+        )
+
+        coordinator.previewCommandK()
+
+        let window = try XCTUnwrap(overlayWindowController.testingWindow)
+        let newOrigin = CGPoint(x: 320, y: 260)
+        window.setFrameOrigin(newOrigin)
+        NotificationCenter.default.post(name: NSWindow.didMoveNotification, object: window)
+
+        XCTAssertEqual(settingsStore.customOverlayOrigin, newOrigin)
+    }
+
     func testMousePreviewRequiresSettingAndPersistsWhenEnabled() {
         let overlayPresenter = RecordingOverlayPresenter()
         let settingsStore = SettingsStore(defaults: defaults)
@@ -234,5 +287,23 @@ private final class RecordingOverlayPresenter: OverlayPresenting {
     func show(text: String, settings: OverlayPresentationSettings) {
         lastText = text
         lastSettings = settings
+    }
+}
+
+private final class TrackingPermissionManager: InputPermissionManaging {
+    private(set) var requestCount = 0
+    private let state: InputPermissionState
+
+    init(state: InputPermissionState) {
+        self.state = state
+    }
+
+    func currentState() -> InputPermissionState {
+        state
+    }
+
+    func requestAccess() -> InputPermissionState {
+        requestCount += 1
+        return state
     }
 }

@@ -113,16 +113,21 @@ struct SettingsView: View {
                     ForEach(OverlayAnchor.allCases) { anchor in
                         Text(anchor.title).tag(anchor)
                     }
-	                }
-	                .accessibilityIdentifier("overlay-anchor-picker")
+                }
+                .accessibilityIdentifier("overlay-anchor-picker")
+
+                Button("Reset Overlay Position") {
+                    settingsStore.resetCustomOverlayOrigin()
+                }
+                .accessibilityIdentifier("reset-overlay-position-button")
 
 	                Toggle("Show Mouse Clicks", isOn: $settingsStore.showMouseClicks)
 	                    .accessibilityIdentifier("show-mouse-clicks-toggle")
 
-	                settingSlider(
+                settingSlider(
                     title: "Font Size",
                     value: $settingsStore.overlayFontSize,
-                    range: 18...48,
+                    range: 16...40,
                     identifier: "font-size-slider"
                 )
 
