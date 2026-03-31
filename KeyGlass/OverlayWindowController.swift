@@ -128,7 +128,7 @@ final class OverlayWindowController: OverlayPresenting {
             return window
         }
 
-        let panel = NSPanel(
+        let panel = OverlayPanel(
             contentRect: NSRect(x: 80, y: 80, width: 360, height: 92),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
@@ -206,5 +206,15 @@ final class OverlayWindowController: OverlayPresenting {
     private func handleWindowDidMove(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
         onPositionChange?(window.frame.origin)
+    }
+}
+
+private final class OverlayPanel: NSPanel {
+    override var canBecomeKey: Bool {
+        false
+    }
+
+    override var canBecomeMain: Bool {
+        false
     }
 }

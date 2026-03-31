@@ -29,7 +29,14 @@ final class KeyGlassHostedUITests: XCTestCase {
 
         coordinator.openSettings()
 
-        let settingsWindow = NSApp.windows.first { $0.title == "KeyGlass" }
+        let deadline = Date().addingTimeInterval(1)
+        var settingsWindow = visibleSettingsWindow()
+
+        while settingsWindow == nil, Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+            settingsWindow = visibleSettingsWindow()
+        }
+
         XCTAssertNotNil(settingsWindow)
         XCTAssertEqual(settingsWindow?.title, "KeyGlass")
         XCTAssertTrue(settingsWindow?.isVisible ?? false)
@@ -147,15 +154,52 @@ final class KeyGlassHostedUITests: XCTestCase {
     func testTranslatedPreviewUsesFormatterTranslation() {
         let overlayPresenter = RecordingOverlayPresenter()
         let formatter = KeystrokeFormatter(translator: StubKeyTranslator(values: [0: "あ"]))
-        let coordinator = makeCoordinator(
-            overlayPresenter: overlayPresenter,
-            formatter: formatter
+        let settingsStore = SettingsStore(defaults: defaults)
+        settingsStore.displayMode = .allKeys
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: StubInputPermissionManager(state: .granted),
+            eventTapService: NoOpEventTapService(),
+            formatter: formatter,
+            overlayWindowController: overlayPresenter
         )
 
         coordinator.previewPlainA()
 
         XCTAssertEqual(coordinator.lastPresentedText, "あ")
         XCTAssertEqual(overlayPresenter.lastText, "あ")
+    }
+
+    func testOverlayWindowShowsWithoutBecomingKey() throws {
+        let overlayWindowController = OverlayWindowController()
+        let settingsStore = SettingsStore(defaults: defaults)
+        settingsStore.displayMode = .allKeys
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: StubInputPermissionManager(state: .granted),
+            eventTapService: NoOpEventTapService(),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: overlayWindowController
+        )
+
+        coordinator.previewCommandK()
+
+        let window = try XCTUnwrap(overlayWindowController.testingWindow)
+        XCTAssertTrue(window.isVisible)
+        XCTAssertFalse(window.canBecomeKey)
+        XCTAssertFalse(window.canBecomeMain)
     }
 
     func testFirstLaunchPermissionFlowRequestsAccessOnce() {
@@ -277,6 +321,12 @@ final class KeyGlassHostedUITests: XCTestCase {
             formatter: formatter ?? KeystrokeFormatter(),
             overlayWindowController: overlayPresenter
         )
+    }
+
+    private func visibleSettingsWindow() -> NSWindow? {
+        NSApp.windows.reversed().first { window in
+            window.title == "KeyGlass" && window.isVisible
+        }
     }
 }
 
