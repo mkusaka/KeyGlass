@@ -109,7 +109,7 @@ final class SettingsStore: ObservableObject {
         self.overlayFontSize = defaults.object(forKey: Keys.overlayFontSize) as? Double ?? 22
         self.fadeDelay = defaults.object(forKey: Keys.fadeDelay) as? Double ?? 1.2
         self.fadeDuration = defaults.object(forKey: Keys.fadeDuration) as? Double ?? 0.22
-        self.displayMode = DisplayMode(rawValue: defaults.string(forKey: Keys.displayMode) ?? "") ?? .modifiedKeys
+        self.displayMode = DisplayMode(rawValue: defaults.string(forKey: Keys.displayMode) ?? "") ?? .allKeys
         self.showMouseClicks = defaults.object(forKey: Keys.showMouseClicks) as? Bool ?? false
         self.hasPromptedForInputMonitoring = defaults.object(forKey: Keys.hasPromptedForInputMonitoring) as? Bool ?? false
         self.customOverlayOrigin = Self.loadCustomOverlayOrigin(defaults: defaults)

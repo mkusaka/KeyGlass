@@ -117,6 +117,12 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertTrue(reloadedStore.showMouseClicks)
     }
 
+    func testDefaultDisplayModeShowsAllKeys() {
+        let settingsStore = SettingsStore(defaults: defaults)
+
+        XCTAssertEqual(settingsStore.displayMode, .allKeys)
+    }
+
     func testOverlaySettingsFlowIntoPresenter() throws {
         let overlayPresenter = RecordingOverlayPresenter()
         let settingsStore = SettingsStore(defaults: defaults)
