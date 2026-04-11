@@ -9,6 +9,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 20) {
                 header
                 captureSection
+                diagnosticsSection
                 displaySection
                 previewSection
             }
@@ -61,18 +62,42 @@ struct SettingsView: View {
         }
     }
 
+    private var diagnosticsSection: some View {
+        GroupBox("Diagnostics") {
+            VStack(alignment: .leading, spacing: 12) {
+                diagnosticValue(title: "Last Live Event", value: coordinator.liveCaptureDiagnostics.lastEventSummary, identifier: "live-last-event-value")
+                statusRow(title: "Live KeyDown Count", value: String(coordinator.liveCaptureDiagnostics.keyDownCount), identifier: "live-keydown-count-value")
+                statusRow(title: "Live Modifier Count", value: String(coordinator.liveCaptureDiagnostics.modifierEventCount), identifier: "live-modifier-count-value")
+                statusRow(title: "Live Mouse Count", value: String(coordinator.liveCaptureDiagnostics.mouseClickCount), identifier: "live-mouse-count-value")
+
+                if let liveCaptureHint = coordinator.liveCaptureHint {
+                    Text(liveCaptureHint)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityLabel(liveCaptureHint)
+                        .accessibilityValue(liveCaptureHint)
+                        .accessibilityIdentifier("live-capture-hint")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     private var previewSection: some View {
         GroupBox("Preview") {
             VStack(alignment: .leading, spacing: 12) {
                 Text(coordinator.lastPresentedText)
                     .font(.title3.monospaced())
+                    .accessibilityLabel(coordinator.lastPresentedText)
+                    .accessibilityValue(coordinator.lastPresentedText)
                     .accessibilityIdentifier("last-output-value")
 
-	                HStack {
-	                    Button("Preview A") {
-	                        coordinator.previewPlainA()
-	                    }
-	                    .accessibilityIdentifier("preview-a-button")
+                HStack {
+                    Button("Preview A") {
+                        coordinator.previewPlainA()
+                    }
+                    .accessibilityIdentifier("preview-a-button")
 
                     Button("Preview Command-K") {
                         coordinator.previewCommandK()
@@ -84,17 +109,17 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("preview-shift-tab-button")
 
-	                    Button("Preview Shift") {
-	                        coordinator.previewModifierOnly()
-	                    }
-	                    .accessibilityIdentifier("preview-shift-button")
+                    Button("Preview Shift") {
+                        coordinator.previewModifierOnly()
+                    }
+                    .accessibilityIdentifier("preview-shift-button")
 
-	                    Button("Preview Left Click") {
-	                        coordinator.previewLeftClick()
-	                    }
-	                    .accessibilityIdentifier("preview-left-click-button")
-	                }
-	            }
+                    Button("Preview Left Click") {
+                        coordinator.previewLeftClick()
+                    }
+                    .accessibilityIdentifier("preview-left-click-button")
+                }
+            }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -121,8 +146,8 @@ struct SettingsView: View {
                 }
                 .accessibilityIdentifier("reset-overlay-position-button")
 
-	                Toggle("Show Mouse Clicks", isOn: $settingsStore.showMouseClicks)
-	                    .accessibilityIdentifier("show-mouse-clicks-toggle")
+                Toggle("Show Mouse Clicks", isOn: $settingsStore.showMouseClicks)
+                    .accessibilityIdentifier("show-mouse-clicks-toggle")
 
                 settingSlider(
                     title: "Font Size",
@@ -168,6 +193,22 @@ struct SettingsView: View {
 
             Text(value)
                 .monospaced()
+                .accessibilityLabel(value)
+                .accessibilityValue(value)
+                .accessibilityIdentifier(identifier)
+        }
+    }
+
+    private func diagnosticValue(title: String, value: String, identifier: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.body.monospaced())
+                .textSelection(.enabled)
+                .accessibilityLabel(value)
+                .accessibilityValue(value)
                 .accessibilityIdentifier(identifier)
         }
     }

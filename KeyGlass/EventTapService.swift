@@ -1,6 +1,7 @@
 import AppKit
 import CoreGraphics
 import Foundation
+import OSLog
 
 struct CapturedInput: Equatable {
     let kind: CapturedInputKind
@@ -48,15 +49,18 @@ final class NoOpEventTapService: EventTapServicing {
 final class SystemEventTapService: EventTapServicing {
     private(set) var isRunning = false
 
-    private var keyTap: CFMachPort?
-    private var keyTapSource: CFRunLoopSource?
-    private var flagsTap: CFMachPort?
-    private var flagsTapSource: CFRunLoopSource?
+    private let logger = Logger(subsystem: "com.mkusaka.KeyGlass", category: "EventTap")
+    private var eventTap: CFMachPort?
+    private var eventTapSource: CFRunLoopSource?
     private var handler: ((CapturedInput) -> Void)?
 
     func start(handler: @escaping (CapturedInput) -> Void) throws {
-        guard !isRunning else { return }
+        guard !isRunning else {
+            logger.notice("start ignored because event tap is already running")
+            return
+        }
 
+        logger.notice("start requested")
         self.handler = handler
         let context = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
 
@@ -70,91 +74,64 @@ final class SystemEventTapService: EventTapServicing {
             return Unmanaged.passUnretained(event)
         }
 
-        let keyMask = CGEventMask(1 << CGEventType.keyDown.rawValue)
-        let flagsMask =
+        let eventMask =
+            CGEventMask(1 << CGEventType.keyDown.rawValue) |
             CGEventMask(1 << CGEventType.flagsChanged.rawValue) |
             CGEventMask(1 << CGEventType.leftMouseDown.rawValue) |
             CGEventMask(1 << CGEventType.rightMouseDown.rawValue) |
             CGEventMask(1 << CGEventType.otherMouseDown.rawValue)
 
-        let keyTap = CGEvent.tapCreate(
+        let eventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .listenOnly,
-            eventsOfInterest: keyMask,
+            eventsOfInterest: eventMask,
             callback: callback,
             userInfo: context
         )
 
-        let flagsTap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
-            place: .headInsertEventTap,
-            options: .listenOnly,
-            eventsOfInterest: flagsMask,
-            callback: callback,
-            userInfo: context
-        )
-
-        guard let keyTap, let flagsTap else {
+        guard let eventTap else {
+            logger.error("tapCreate failed")
             self.handler = nil
             throw EventTapError.tapCreationFailed
         }
 
-        self.keyTap = keyTap
-        self.flagsTap = flagsTap
+        self.eventTap = eventTap
+        eventTapSource = CFMachPortCreateRunLoopSource(nil, eventTap, 0)
 
-        keyTapSource = CFMachPortCreateRunLoopSource(nil, keyTap, 0)
-        flagsTapSource = CFMachPortCreateRunLoopSource(nil, flagsTap, 0)
-
-        if let keyTapSource {
-            CFRunLoopAddSource(CFRunLoopGetMain(), keyTapSource, .commonModes)
+        if let eventTapSource {
+            CFRunLoopAddSource(CFRunLoopGetMain(), eventTapSource, .commonModes)
         }
 
-        if let flagsTapSource {
-            CFRunLoopAddSource(CFRunLoopGetMain(), flagsTapSource, .commonModes)
-        }
-
-        CGEvent.tapEnable(tap: keyTap, enable: true)
-        CGEvent.tapEnable(tap: flagsTap, enable: true)
+        CGEvent.tapEnable(tap: eventTap, enable: true)
         isRunning = true
+        logger.notice("start succeeded")
     }
 
     func stop() {
-        if let keyTapSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), keyTapSource, .commonModes)
-            CFRunLoopSourceInvalidate(keyTapSource)
+        logger.notice("stop requested")
+        if let eventTapSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), eventTapSource, .commonModes)
+            CFRunLoopSourceInvalidate(eventTapSource)
         }
 
-        if let flagsTapSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), flagsTapSource, .commonModes)
-            CFRunLoopSourceInvalidate(flagsTapSource)
+        if let eventTap {
+            CFMachPortInvalidate(eventTap)
         }
 
-        if let keyTap {
-            CFMachPortInvalidate(keyTap)
-        }
-
-        if let flagsTap {
-            CFMachPortInvalidate(flagsTap)
-        }
-
-        keyTap = nil
-        keyTapSource = nil
-        flagsTap = nil
-        flagsTapSource = nil
+        eventTap = nil
+        eventTapSource = nil
         handler = nil
         isRunning = false
+        logger.notice("stop finished")
     }
 
     private func handle(eventType: CGEventType, event: CGEvent) {
         switch eventType {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
-            if let keyTap {
-                CGEvent.tapEnable(tap: keyTap, enable: true)
-            }
-
-            if let flagsTap {
-                CGEvent.tapEnable(tap: flagsTap, enable: true)
+            logger.notice("tap disabled by system eventType=\(String(describing: eventType), privacy: .public); re-enabling")
+            if let eventTap {
+                CGEvent.tapEnable(tap: eventTap, enable: true)
             }
 
         case .keyDown:
@@ -205,5 +182,116 @@ final class SystemEventTapService: EventTapServicing {
         default:
             break
         }
+    }
+}
+
+final class ScriptedEventTapService: EventTapServicing {
+    private(set) var isRunning = false
+
+    private let script: [CapturedInput]
+    private var handler: ((CapturedInput) -> Void)?
+    private var pendingWorkItems: [DispatchWorkItem] = []
+
+    init(script: String?) {
+        self.script = Self.parse(script: script)
+    }
+
+    func start(handler: @escaping (CapturedInput) -> Void) throws {
+        guard !isRunning else { return }
+
+        isRunning = true
+        self.handler = handler
+        pendingWorkItems.removeAll()
+
+        for (index, input) in script.enumerated() {
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self, self.isRunning else { return }
+                self.handler?(input)
+            }
+
+            pendingWorkItems.append(workItem)
+            let delay = 0.12 + (Double(index) * 0.08)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+        }
+    }
+
+    func stop() {
+        pendingWorkItems.forEach { $0.cancel() }
+        pendingWorkItems.removeAll()
+        handler = nil
+        isRunning = false
+    }
+
+    private static func parse(script: String?) -> [CapturedInput] {
+        guard let script, !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return []
+        }
+
+        return script
+            .split(separator: ";")
+            .compactMap { entry in
+                let parts = entry.split(separator: ":", omittingEmptySubsequences: false)
+                guard parts.count == 3,
+                      let kind = CapturedInputKind(scriptToken: String(parts[0])),
+                      let keyCode = UInt16(parts[1])
+                else {
+                    return nil
+                }
+
+                return CapturedInput(
+                    kind: kind,
+                    keyCode: keyCode,
+                    modifierFlags: NSEvent.ModifierFlags(scriptToken: String(parts[2]))
+                )
+            }
+    }
+}
+
+private extension CapturedInputKind {
+    init?(scriptToken: String) {
+        switch scriptToken {
+        case "keyDown":
+            self = .keyDown
+        case "flagsChanged":
+            self = .flagsChanged
+        case "leftMouseDown":
+            self = .leftMouseDown
+        case "rightMouseDown":
+            self = .rightMouseDown
+        case "otherMouseDown":
+            self = .otherMouseDown
+        default:
+            return nil
+        }
+    }
+}
+
+private extension NSEvent.ModifierFlags {
+    init(scriptToken: String) {
+        if scriptToken.isEmpty || scriptToken == "none" {
+            self = []
+            return
+        }
+
+        self = scriptToken
+            .split(separator: ",")
+            .reduce(into: NSEvent.ModifierFlags()) { result, token in
+                switch token {
+                case "capsLock":
+                    result.insert(.capsLock)
+                case "shift":
+                    result.insert(.shift)
+                case "control":
+                    result.insert(.control)
+                case "option":
+                    result.insert(.option)
+                case "command":
+                    result.insert(.command)
+                case "function":
+                    result.insert(.function)
+                default:
+                    break
+                }
+            }
     }
 }

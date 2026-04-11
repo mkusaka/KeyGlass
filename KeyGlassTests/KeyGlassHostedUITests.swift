@@ -52,6 +52,31 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertEqual(coordinator.captureStatusDescription, "Stopped")
     }
 
+    func testEnablingCaptureRequestsPermissionWhenApprovalIsMissing() {
+        let permissionManager = TrackingPermissionManager(state: .requiresApproval)
+        let settingsStore = SettingsStore(defaults: defaults)
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: false,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: permissionManager,
+            eventTapService: NoOpEventTapService(),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: RecordingOverlayPresenter()
+        )
+
+        coordinator.toggleCaptureEnabled(true)
+
+        XCTAssertTrue(settingsStore.captureEnabled)
+        XCTAssertEqual(permissionManager.requestCount, 1)
+        XCTAssertTrue(settingsStore.hasPromptedForInputMonitoring)
+        XCTAssertEqual(coordinator.captureStatusDescription, "Permission required")
+    }
+
     func testPreviewActionsUpdatePresentedText() {
         let overlayPresenter = RecordingOverlayPresenter()
         let coordinator = makeCoordinator(overlayPresenter: overlayPresenter)
@@ -310,9 +335,66 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertEqual(coordinator.captureStatusDescription, "Permission required")
     }
 
+    func testLiveDiagnosticsTrackKeyDownEvents() {
+        let coordinator = makeCoordinator(eventTapService: ScriptedEventTapService(script: "keyDown:48:shift"))
+
+        coordinator.toggleCaptureEnabled(true)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+
+        XCTAssertEqual(coordinator.captureStatusDescription, "Running")
+        XCTAssertEqual(coordinator.liveCaptureDiagnostics.keyDownCount, 1)
+        XCTAssertEqual(coordinator.liveCaptureDiagnostics.modifierEventCount, 0)
+        XCTAssertEqual(coordinator.liveCaptureDiagnostics.lastEventSummary, "keyDown keyCode=48 flags=shift")
+        XCTAssertEqual(coordinator.lastPresentedText, "⇧⇥")
+        XCTAssertNil(coordinator.liveCaptureHint)
+    }
+
+    func testLiveDiagnosticsExposeModifierOnlyHint() {
+        let coordinator = makeCoordinator(eventTapService: ScriptedEventTapService(script: "flagsChanged:56:shift"))
+
+        coordinator.toggleCaptureEnabled(true)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+
+        XCTAssertEqual(coordinator.liveCaptureDiagnostics.keyDownCount, 0)
+        XCTAssertEqual(coordinator.liveCaptureDiagnostics.modifierEventCount, 1)
+        XCTAssertEqual(coordinator.liveCaptureDiagnostics.lastEventSummary, "flagsChanged keyCode=56 flags=shift")
+        XCTAssertEqual(coordinator.lastPresentedText, "⇧")
+        XCTAssertEqual(
+            coordinator.liveCaptureHint,
+            "Only modifier events have been seen so far. Check Input Monitoring approval and whether the active app is using Secure Input."
+        )
+    }
+
+    func testDiagnosticsStillCountFilteredPlainKeyInput() {
+        let settingsStore = SettingsStore(defaults: defaults)
+        settingsStore.displayMode = .modifiedKeys
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: StubInputPermissionManager(state: .granted),
+            eventTapService: ScriptedEventTapService(script: "keyDown:0:none"),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: RecordingOverlayPresenter()
+        )
+
+        coordinator.toggleCaptureEnabled(true)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+
+        XCTAssertEqual(coordinator.liveCaptureDiagnostics.keyDownCount, 1)
+        XCTAssertEqual(coordinator.lastPresentedText, "No input yet")
+        XCTAssertEqual(coordinator.liveCaptureDiagnostics.lastEventSummary, "keyDown keyCode=0 flags=none")
+        XCTAssertNil(coordinator.liveCaptureHint)
+    }
+
     private func makeCoordinator(
-        overlayPresenter: RecordingOverlayPresenter = RecordingOverlayPresenter(),
-        formatter: KeystrokeFormatter? = nil
+        overlayPresenter: OverlayPresenting = RecordingOverlayPresenter(),
+        formatter: KeystrokeFormatter? = nil,
+        eventTapService: EventTapServicing = NoOpEventTapService()
     ) -> AppCoordinator {
         AppCoordinator(
             launchConfiguration: LaunchConfiguration(
@@ -323,7 +405,7 @@ final class KeyGlassHostedUITests: XCTestCase {
             ),
             settingsStore: SettingsStore(defaults: defaults),
             permissionManager: StubInputPermissionManager(state: .granted),
-            eventTapService: NoOpEventTapService(),
+            eventTapService: eventTapService,
             formatter: formatter ?? KeystrokeFormatter(),
             overlayWindowController: overlayPresenter
         )

@@ -1,11 +1,13 @@
 import AppKit
 import Foundation
+import OSLog
 
 @MainActor
 final class AppCoordinator: NSObject, ObservableObject {
     @Published private(set) var permissionState: InputPermissionState
     @Published private(set) var captureRuntimeState: CaptureRuntimeState = .stopped
     @Published private(set) var lastPresentedText = "No input yet"
+    @Published private(set) var liveCaptureDiagnostics = LiveCaptureDiagnostics()
 
     let launchConfiguration: LaunchConfiguration
     let settingsStore: SettingsStore
@@ -19,6 +21,7 @@ final class AppCoordinator: NSObject, ObservableObject {
         settingsStore: settingsStore
     )
     private var statusItem: NSStatusItem?
+    private let logger = Logger(subsystem: "com.mkusaka.KeyGlass", category: "AppCoordinator")
 
     init(
         launchConfiguration: LaunchConfiguration,
@@ -60,7 +63,19 @@ final class AppCoordinator: NSObject, ObservableObject {
         launchConfiguration.isUITestMode
     }
 
+    var liveCaptureHint: String? {
+        guard captureRuntimeState == .running else { return nil }
+        guard liveCaptureDiagnostics.keyDownCount == 0 else { return nil }
+        guard liveCaptureDiagnostics.modifierEventCount > 0 else { return nil }
+
+        return "Only modifier events have been seen so far. Check Input Monitoring approval and whether the active app is using Secure Input."
+    }
+
     func applicationDidFinishLaunching() {
+        logger.notice(
+            "applicationDidFinishLaunching uiTestMode=\(self.launchConfiguration.isUITestMode, privacy: .public) captureEnabled=\(self.settingsStore.captureEnabled, privacy: .public) hasPrompted=\(self.settingsStore.hasPromptedForInputMonitoring, privacy: .public)"
+        )
+
         if launchConfiguration.isUITestMode {
             NSApp.setActivationPolicy(.regular)
         }
@@ -93,13 +108,30 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     func requestPermission() {
+        let preflightState = permissionManager.currentState()
+        logger.notice(
+            "requestPermission started captureEnabled=\(self.settingsStore.captureEnabled, privacy: .public) currentPermission=\(preflightState.description, privacy: .public)"
+        )
+        settingsStore.hasPromptedForInputMonitoring = true
         permissionState = permissionManager.requestAccess()
-        syncCaptureState()
+        logger.notice("requestPermission finished permission=\(self.permissionState.description, privacy: .public)")
+        syncCaptureState(reason: "requestPermission")
     }
 
     func toggleCaptureEnabled(_ enabled: Bool) {
+        logger.notice("toggleCaptureEnabled enabled=\(enabled, privacy: .public)")
         settingsStore.captureEnabled = enabled
-        syncCaptureState()
+
+        let preflightState = permissionManager.currentState()
+        logger.notice("toggleCaptureEnabled preflightPermission=\(preflightState.description, privacy: .public)")
+
+        if enabled, !preflightState.isGranted {
+            logger.notice("toggleCaptureEnabled requesting permission because capture was enabled without approval")
+            requestPermission()
+            return
+        }
+
+        syncCaptureState(reason: "toggleCaptureEnabled")
     }
 
     func previewCommandK() {
@@ -192,29 +224,42 @@ final class AppCoordinator: NSObject, ObservableObject {
         rebuildStatusMenu()
     }
 
-    private func syncCaptureState() {
+    private func syncCaptureState(reason: String = "unspecified") {
+        logger.notice(
+            "syncCaptureState reason=\(reason, privacy: .public) captureEnabled=\(self.settingsStore.captureEnabled, privacy: .public) lastKnownPermission=\(self.permissionState.description, privacy: .public) eventTapRunning=\(self.eventTapService.isRunning, privacy: .public)"
+        )
         refreshPermissionState()
+        logger.notice("syncCaptureState refreshedPermission=\(self.permissionState.description, privacy: .public)")
 
         guard settingsStore.captureEnabled else {
+            logger.notice("syncCaptureState stopping capture because captureEnabled is false")
             eventTapService.stop()
+            resetLiveCaptureDiagnostics()
             captureRuntimeState = .stopped
             rebuildStatusMenu()
             return
         }
 
         guard permissionState.isGranted else {
+            logger.notice("syncCaptureState cannot start capture because permission is required")
             eventTapService.stop()
+            resetLiveCaptureDiagnostics()
             captureRuntimeState = .permissionRequired
             rebuildStatusMenu()
             return
         }
 
+        resetLiveCaptureDiagnostics()
+
         do {
+            logger.notice("syncCaptureState starting event tap")
             try eventTapService.start { [weak self] capturedInput in
-                self?.presentCapturedInput(capturedInput)
+                self?.handleLiveCapturedInput(capturedInput)
             }
             captureRuntimeState = .running
+            logger.notice("syncCaptureState event tap is running")
         } catch {
+            logger.error("syncCaptureState failed to start event tap error=\(String(describing: error), privacy: .public)")
             captureRuntimeState = .failed("Failed to start event capture")
         }
 
@@ -239,6 +284,15 @@ final class AppCoordinator: NSObject, ObservableObject {
             settings: OverlayPresentationSettings(from: settingsStore)
         )
         rebuildStatusMenu()
+    }
+
+    private func handleLiveCapturedInput(_ capturedInput: CapturedInput) {
+        liveCaptureDiagnostics.record(capturedInput)
+        presentCapturedInput(capturedInput)
+    }
+
+    private func resetLiveCaptureDiagnostics() {
+        liveCaptureDiagnostics = LiveCaptureDiagnostics()
     }
 
     private func rebuildStatusMenu() {
@@ -325,5 +379,64 @@ enum CaptureRuntimeState: Equatable {
         case let .failed(message):
             return message
         }
+    }
+}
+
+struct LiveCaptureDiagnostics: Equatable {
+    private(set) var lastEventSummary = "No live input yet"
+    private(set) var keyDownCount = 0
+    private(set) var modifierEventCount = 0
+    private(set) var mouseClickCount = 0
+
+    mutating func record(_ capturedInput: CapturedInput) {
+        switch capturedInput.kind {
+        case .keyDown:
+            keyDownCount += 1
+        case .flagsChanged:
+            modifierEventCount += 1
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+            mouseClickCount += 1
+        }
+
+        lastEventSummary = capturedInput.debugSummary
+    }
+}
+
+private extension CapturedInput {
+    var debugSummary: String {
+        "\(kind.debugName) keyCode=\(keyCode) flags=\(modifierFlags.debugSummary)"
+    }
+}
+
+private extension CapturedInputKind {
+    var debugName: String {
+        switch self {
+        case .keyDown:
+            return "keyDown"
+        case .flagsChanged:
+            return "flagsChanged"
+        case .leftMouseDown:
+            return "leftMouseDown"
+        case .rightMouseDown:
+            return "rightMouseDown"
+        case .otherMouseDown:
+            return "otherMouseDown"
+        }
+    }
+}
+
+private extension NSEvent.ModifierFlags {
+    var debugSummary: String {
+        let filteredFlags = intersection(.deviceIndependentFlagsMask)
+        var tokens: [String] = []
+
+        if filteredFlags.contains(.capsLock) { tokens.append("capsLock") }
+        if filteredFlags.contains(.shift) { tokens.append("shift") }
+        if filteredFlags.contains(.control) { tokens.append("control") }
+        if filteredFlags.contains(.option) { tokens.append("option") }
+        if filteredFlags.contains(.command) { tokens.append("command") }
+        if filteredFlags.contains(.function) { tokens.append("function") }
+
+        return tokens.isEmpty ? "none" : tokens.joined(separator: ",")
     }
 }
