@@ -13,7 +13,13 @@ struct KeyGlassApp: App {
 
     var body: some Scene {
         Settings {
-            EmptyView()
+            if AppContainer.shared.coordinator.launchConfiguration.isUITestMode {
+                SettingsView()
+                    .environmentObject(AppContainer.shared.coordinator)
+                    .environmentObject(AppContainer.shared.settingsStore)
+            } else {
+                EmptyView()
+            }
         }
     }
 }

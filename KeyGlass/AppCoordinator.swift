@@ -5,6 +5,7 @@ import OSLog
 @MainActor
 final class AppCoordinator: NSObject, ObservableObject {
     @Published private(set) var permissionState: InputPermissionState
+    @Published private(set) var launchAtLoginState: LaunchAtLoginState
     @Published private(set) var captureRuntimeState: CaptureRuntimeState = .stopped
     @Published private(set) var lastPresentedText = "No input yet"
     @Published private(set) var liveCaptureDiagnostics = LiveCaptureDiagnostics()
@@ -14,13 +15,18 @@ final class AppCoordinator: NSObject, ObservableObject {
 
     private let permissionManager: InputPermissionManaging
     private let eventTapService: EventTapServicing
+    private let launchAtLoginManager: LaunchAtLoginManaging
     private let formatter: KeystrokeFormatter
     private let overlayWindowController: OverlayPresenting
+    private let openExternalURL: (URL) -> Bool
     private lazy var settingsWindowController = SettingsWindowController(
         coordinator: self,
         settingsStore: settingsStore
     )
     private var statusItem: NSStatusItem?
+    private var overlayHistory: [OverlayHistoryEntry] = []
+    private var pendingOverlayExpiryWorkItems: [UUID: DispatchWorkItem] = [:]
+    private var overlayDragStartedAt: Date?
     private let logger = Logger(subsystem: "com.mkusaka.KeyGlass", category: "AppCoordinator")
 
     init(
@@ -28,21 +34,31 @@ final class AppCoordinator: NSObject, ObservableObject {
         settingsStore: SettingsStore,
         permissionManager: InputPermissionManaging,
         eventTapService: EventTapServicing,
+        launchAtLoginManager: LaunchAtLoginManaging,
         formatter: KeystrokeFormatter,
-        overlayWindowController: OverlayPresenting
+        overlayWindowController: OverlayPresenting,
+        openExternalURL: @escaping (URL) -> Bool = { url in
+            NSWorkspace.shared.open(url)
+        }
     ) {
         self.launchConfiguration = launchConfiguration
         self.settingsStore = settingsStore
         self.permissionManager = permissionManager
         self.eventTapService = eventTapService
+        self.launchAtLoginManager = launchAtLoginManager
         self.formatter = formatter
         self.overlayWindowController = overlayWindowController
+        self.openExternalURL = openExternalURL
         self.permissionState = permissionManager.currentState()
+        self.launchAtLoginState = launchAtLoginManager.currentState()
         super.init()
 
         if let overlayWindowController = overlayWindowController as? OverlayWindowController {
             overlayWindowController.onPositionChange = { [weak settingsStore] origin in
                 settingsStore?.customOverlayOrigin = origin
+            }
+            overlayWindowController.onDraggingStateChange = { [weak self] isDragging in
+                self?.setOverlayDragging(isDragging)
             }
         }
     }
@@ -59,6 +75,18 @@ final class AppCoordinator: NSObject, ObservableObject {
         captureRuntimeState.description
     }
 
+    var launchAtLoginDescription: String {
+        launchAtLoginState.description
+    }
+
+    var isLaunchAtLoginEnabled: Bool {
+        launchAtLoginState.isEnabled
+    }
+
+    var launchAtLoginHint: String? {
+        launchAtLoginState.hint
+    }
+
     var shouldShowUITestBanner: Bool {
         launchConfiguration.isUITestMode
     }
@@ -69,6 +97,14 @@ final class AppCoordinator: NSObject, ObservableObject {
         guard liveCaptureDiagnostics.modifierEventCount > 0 else { return nil }
 
         return "Only modifier events have been seen so far. Check Input Monitoring approval and whether the active app is using Secure Input."
+    }
+
+    var permissionActionTitle: String {
+        permissionState.isGranted ? "Open Input Monitoring Settings" : "Request Permission"
+    }
+
+    var testingStatusMenuItems: [NSMenuItem] {
+        statusItem?.menu?.items ?? []
     }
 
     func applicationDidFinishLaunching() {
@@ -82,6 +118,7 @@ final class AppCoordinator: NSObject, ObservableObject {
 
         configureStatusItemIfNeeded()
         refreshPermissionState()
+        refreshLaunchAtLoginState()
         syncCaptureState()
 
         if !launchConfiguration.isUITestMode,
@@ -98,7 +135,14 @@ final class AppCoordinator: NSObject, ObservableObject {
 
         if launchConfiguration.shouldOpenSettingsOnLaunch {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-                self?.openSettings()
+                guard let self else { return }
+
+                if self.launchConfiguration.isUITestMode {
+                    NSApp.activate(ignoringOtherApps: true)
+                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                } else {
+                    self.openSettings()
+                }
             }
         }
     }
@@ -116,6 +160,23 @@ final class AppCoordinator: NSObject, ObservableObject {
         permissionState = permissionManager.requestAccess()
         logger.notice("requestPermission finished permission=\(self.permissionState.description, privacy: .public)")
         syncCaptureState(reason: "requestPermission")
+    }
+
+    func performPermissionAction() {
+        if permissionState.isGranted {
+            openInputMonitoringSettings()
+        } else {
+            requestPermission()
+        }
+    }
+
+    func toggleLaunchAtLogin(_ enabled: Bool) {
+        do {
+            launchAtLoginState = try launchAtLoginManager.setEnabled(enabled)
+        } catch {
+            logger.error("toggleLaunchAtLogin failed error=\(String(describing: error), privacy: .public)")
+            refreshLaunchAtLoginState()
+        }
     }
 
     func toggleCaptureEnabled(_ enabled: Bool) {
@@ -191,12 +252,7 @@ final class AppCoordinator: NSObject, ObservableObject {
 
     @objc
     func handleRequestPermissionMenuAction(_ sender: Any?) {
-        requestPermission()
-    }
-
-    @objc
-    func handlePreviewMenuAction(_ sender: Any?) {
-        previewCommandK()
+        performPermissionAction()
     }
 
     @objc
@@ -224,6 +280,25 @@ final class AppCoordinator: NSObject, ObservableObject {
         rebuildStatusMenu()
     }
 
+    private func refreshLaunchAtLoginState() {
+        launchAtLoginState = launchAtLoginManager.currentState()
+    }
+
+    private func openInputMonitoringSettings() {
+        let candidateURLs = [
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent",
+            "x-apple.systempreferences:com.apple.preference.security?Privacy",
+            "x-apple.systempreferences:com.apple.Settings.PrivacySecurity.extension",
+        ]
+
+        for urlString in candidateURLs {
+            guard let url = URL(string: urlString) else { continue }
+            if openExternalURL(url) {
+                return
+            }
+        }
+    }
+
     private func syncCaptureState(reason: String = "unspecified") {
         logger.notice(
             "syncCaptureState reason=\(reason, privacy: .public) captureEnabled=\(self.settingsStore.captureEnabled, privacy: .public) lastKnownPermission=\(self.permissionState.description, privacy: .public) eventTapRunning=\(self.eventTapService.isRunning, privacy: .public)"
@@ -235,6 +310,7 @@ final class AppCoordinator: NSObject, ObservableObject {
             logger.notice("syncCaptureState stopping capture because captureEnabled is false")
             eventTapService.stop()
             resetLiveCaptureDiagnostics()
+            clearOverlayHistory()
             captureRuntimeState = .stopped
             rebuildStatusMenu()
             return
@@ -244,6 +320,7 @@ final class AppCoordinator: NSObject, ObservableObject {
             logger.notice("syncCaptureState cannot start capture because permission is required")
             eventTapService.stop()
             resetLiveCaptureDiagnostics()
+            clearOverlayHistory()
             captureRuntimeState = .permissionRequired
             rebuildStatusMenu()
             return
@@ -278,11 +355,25 @@ final class AppCoordinator: NSObject, ObservableObject {
             break
         }
 
-        lastPresentedText = text
-        overlayWindowController.show(
-            text: text,
-            settings: OverlayPresentationSettings(from: settingsStore)
-        )
+        let now = Date()
+        if shouldAppendToLatestEntry(for: capturedInput, at: now), !overlayHistory.isEmpty {
+            overlayHistory[0].text += text
+            overlayHistory[0].updatedAt = now
+        } else {
+            overlayHistory.insert(
+                OverlayHistoryEntry(
+                    id: UUID(),
+                    text: text,
+                    updatedAt: now,
+                    mergeMode: mergeMode(for: capturedInput)
+                ),
+                at: 0
+            )
+        }
+
+        trimOverlayHistoryIfNeeded()
+        lastPresentedText = overlayHistory.first?.text ?? text
+        renderOverlayHistory()
         rebuildStatusMenu()
     }
 
@@ -293,6 +384,108 @@ final class AppCoordinator: NSObject, ObservableObject {
 
     private func resetLiveCaptureDiagnostics() {
         liveCaptureDiagnostics = LiveCaptureDiagnostics()
+    }
+
+    private func mergeMode(for capturedInput: CapturedInput) -> OverlayEntryMergeMode {
+        if isSequenceEligible(capturedInput) {
+            return .sequence
+        }
+
+        return .isolated
+    }
+
+    private func shouldAppendToLatestEntry(for capturedInput: CapturedInput, at now: Date) -> Bool {
+        guard isSequenceEligible(capturedInput) else { return false }
+        guard let latestEntry = overlayHistory.first else { return false }
+        guard latestEntry.mergeMode == .sequence else { return false }
+        return now.timeIntervalSince(latestEntry.updatedAt) <= settingsStore.overlayMergeWindow
+    }
+
+    private func isSequenceEligible(_ capturedInput: CapturedInput) -> Bool {
+        guard capturedInput.kind == .keyDown else { return false }
+        return capturedInput.modifierFlags.intersection([.command, .control]).isEmpty
+    }
+
+    private func trimOverlayHistoryIfNeeded() {
+        guard overlayHistory.count > settingsStore.overlayStackMaxCount else { return }
+
+        let removedIDs = overlayHistory[settingsStore.overlayStackMaxCount...].map(\.id)
+        overlayHistory = Array(overlayHistory.prefix(settingsStore.overlayStackMaxCount))
+
+        for removedID in removedIDs {
+            pendingOverlayExpiryWorkItems[removedID]?.cancel()
+            pendingOverlayExpiryWorkItems.removeValue(forKey: removedID)
+        }
+    }
+
+    private func renderOverlayHistory() {
+        rescheduleOverlayExpiryWorkItems()
+        overlayWindowController.show(
+            entries: overlayHistory,
+            settings: OverlayPresentationSettings(from: settingsStore)
+        )
+    }
+
+    private func rescheduleOverlayExpiryWorkItems() {
+        pendingOverlayExpiryWorkItems.values.forEach { $0.cancel() }
+        pendingOverlayExpiryWorkItems.removeAll()
+
+        guard overlayDragStartedAt == nil else { return }
+
+        let totalLifetime = settingsStore.fadeDelay + settingsStore.fadeDuration
+        for entry in overlayHistory {
+            let remainingLifetime = max(0, entry.updatedAt.addingTimeInterval(totalLifetime).timeIntervalSinceNow)
+            let workItem = DispatchWorkItem { [weak self] in
+                self?.removeOverlayEntry(id: entry.id)
+            }
+
+            pendingOverlayExpiryWorkItems[entry.id] = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + remainingLifetime, execute: workItem)
+        }
+    }
+
+    private func removeOverlayEntry(id: UUID) {
+        pendingOverlayExpiryWorkItems.removeValue(forKey: id)
+        overlayHistory.removeAll { entry in
+            entry.id == id
+        }
+        overlayWindowController.show(
+            entries: overlayHistory,
+            settings: OverlayPresentationSettings(from: settingsStore)
+        )
+    }
+
+    private func clearOverlayHistory() {
+        pendingOverlayExpiryWorkItems.values.forEach { $0.cancel() }
+        pendingOverlayExpiryWorkItems.removeAll()
+        overlayHistory.removeAll()
+        overlayDragStartedAt = nil
+        overlayWindowController.show(
+            entries: [],
+            settings: OverlayPresentationSettings(from: settingsStore)
+        )
+    }
+
+    private func setOverlayDragging(_ isDragging: Bool) {
+        if isDragging {
+            guard overlayDragStartedAt == nil else { return }
+            overlayDragStartedAt = Date()
+            pendingOverlayExpiryWorkItems.values.forEach { $0.cancel() }
+            pendingOverlayExpiryWorkItems.removeAll()
+            return
+        }
+
+        guard let overlayDragStartedAt else { return }
+        let pausedDuration = Date().timeIntervalSince(overlayDragStartedAt)
+        self.overlayDragStartedAt = nil
+
+        if pausedDuration > 0 {
+            for index in overlayHistory.indices {
+                overlayHistory[index].updatedAt = overlayHistory[index].updatedAt.addingTimeInterval(pausedDuration)
+            }
+        }
+
+        renderOverlayHistory()
     }
 
     private func rebuildStatusMenu() {
@@ -311,7 +504,7 @@ final class AppCoordinator: NSObject, ObservableObject {
         menu.addItem(.separator())
 
         let toggleItem = NSMenuItem(
-            title: settingsStore.captureEnabled ? "Disable Capture" : "Enable Capture",
+            title: "Enable Capture",
             action: #selector(handleToggleCaptureMenuAction(_:)),
             keyEquivalent: ""
         )
@@ -328,20 +521,12 @@ final class AppCoordinator: NSObject, ObservableObject {
         menu.addItem(settingsItem)
 
         let permissionItem = NSMenuItem(
-            title: "Request Permission",
+            title: permissionActionTitle,
             action: #selector(handleRequestPermissionMenuAction(_:)),
             keyEquivalent: ""
         )
         permissionItem.target = self
         menu.addItem(permissionItem)
-
-        let previewItem = NSMenuItem(
-            title: "Preview Command-K",
-            action: #selector(handlePreviewMenuAction(_:)),
-            keyEquivalent: ""
-        )
-        previewItem.target = self
-        menu.addItem(previewItem)
 
         menu.addItem(.separator())
 

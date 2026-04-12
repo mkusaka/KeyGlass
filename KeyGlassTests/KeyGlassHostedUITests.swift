@@ -65,6 +65,7 @@ final class KeyGlassHostedUITests: XCTestCase {
             settingsStore: settingsStore,
             permissionManager: permissionManager,
             eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
             formatter: KeystrokeFormatter(),
             overlayWindowController: RecordingOverlayPresenter()
         )
@@ -94,6 +95,139 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertEqual(overlayPresenter.lastText, "⇧")
     }
 
+    func testStatusMenuKeepsStableCaptureToggleTitleAndRemovesPreviewEntry() {
+        let coordinator = makeCoordinator()
+
+        coordinator.applicationDidFinishLaunching()
+
+        XCTAssertTrue(coordinator.testingStatusMenuItems.contains { item in
+            item.title == "Enable Capture" && item.state == .off
+        })
+        XCTAssertFalse(coordinator.testingStatusMenuItems.contains { item in
+            item.title == "Preview Command-K"
+        })
+
+        coordinator.toggleCaptureEnabled(true)
+
+        XCTAssertTrue(coordinator.testingStatusMenuItems.contains { item in
+            item.title == "Enable Capture" && item.state == .on
+        })
+        XCTAssertFalse(coordinator.testingStatusMenuItems.contains { item in
+            item.title == "Disable Capture"
+        })
+    }
+
+    func testGrantedPermissionActionOpensInputMonitoringSettings() {
+        let settingsStore = SettingsStore(defaults: defaults)
+        let permissionManager = TrackingPermissionManager(state: .granted)
+        var openedURL: URL?
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: permissionManager,
+            eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: RecordingOverlayPresenter(),
+            openExternalURL: { url in
+                openedURL = url
+                return true
+            }
+        )
+
+        XCTAssertEqual(coordinator.permissionActionTitle, "Open Input Monitoring Settings")
+        coordinator.performPermissionAction()
+
+        XCTAssertEqual(permissionManager.requestCount, 0)
+        XCTAssertEqual(openedURL?.absoluteString, "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+    }
+
+    func testMissingPermissionActionRequestsAccessInsteadOfOpeningSettings() {
+        let settingsStore = SettingsStore(defaults: defaults)
+        let permissionManager = TrackingPermissionManager(state: .requiresApproval)
+        var didOpenURL = false
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: permissionManager,
+            eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: RecordingOverlayPresenter(),
+            openExternalURL: { _ in
+                didOpenURL = true
+                return true
+            }
+        )
+
+        XCTAssertEqual(coordinator.permissionActionTitle, "Request Permission")
+        coordinator.performPermissionAction()
+
+        XCTAssertEqual(permissionManager.requestCount, 1)
+        XCTAssertFalse(didOpenURL)
+    }
+
+    func testLaunchAtLoginToggleUsesManagerState() {
+        let settingsStore = SettingsStore(defaults: defaults)
+        let launchAtLoginManager = StubLaunchAtLoginManager(initialState: .disabled)
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: StubInputPermissionManager(state: .granted),
+            eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: launchAtLoginManager,
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: RecordingOverlayPresenter()
+        )
+
+        XCTAssertEqual(coordinator.launchAtLoginDescription, "Off")
+        XCTAssertFalse(coordinator.isLaunchAtLoginEnabled)
+
+        coordinator.toggleLaunchAtLogin(true)
+
+        XCTAssertEqual(launchAtLoginManager.setCalls, [true])
+        XCTAssertEqual(coordinator.launchAtLoginDescription, "On")
+        XCTAssertTrue(coordinator.isLaunchAtLoginEnabled)
+    }
+
+    func testLaunchAtLoginRequiresApprovalHintIsExposed() {
+        let settingsStore = SettingsStore(defaults: defaults)
+        let launchAtLoginManager = StubLaunchAtLoginManager(initialState: .requiresApproval)
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: StubInputPermissionManager(state: .granted),
+            eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: launchAtLoginManager,
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: RecordingOverlayPresenter()
+        )
+
+        XCTAssertTrue(coordinator.isLaunchAtLoginEnabled)
+        XCTAssertEqual(coordinator.launchAtLoginDescription, "Needs approval in Login Items")
+        XCTAssertNotNil(coordinator.launchAtLoginHint)
+    }
+
     func testDisplayModeFiltersPlainPreviewAndAllowsModifiedShortcut() {
         let overlayPresenter = RecordingOverlayPresenter()
         let settingsStore = SettingsStore(defaults: defaults)
@@ -109,6 +243,7 @@ final class KeyGlassHostedUITests: XCTestCase {
             settingsStore: settingsStore,
             permissionManager: StubInputPermissionManager(state: .granted),
             eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
             formatter: KeystrokeFormatter(),
             overlayWindowController: overlayPresenter
         )
@@ -130,6 +265,9 @@ final class KeyGlassHostedUITests: XCTestCase {
         settingsStore.overlayOpacity = 0.75
         settingsStore.fadeDelay = 1.8
         settingsStore.fadeDuration = 0.35
+        settingsStore.overlayMergeWindow = 0.42
+        settingsStore.overlayStackMaxCount = 7
+        settingsStore.overlayStackDirection = .newestOnBottom
         settingsStore.showMouseClicks = true
 
         let reloadedStore = SettingsStore(defaults: defaults)
@@ -139,6 +277,9 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertEqual(reloadedStore.overlayOpacity, 0.75, accuracy: 0.001)
         XCTAssertEqual(reloadedStore.fadeDelay, 1.8, accuracy: 0.001)
         XCTAssertEqual(reloadedStore.fadeDuration, 0.35, accuracy: 0.001)
+        XCTAssertEqual(reloadedStore.overlayMergeWindow, 0.42, accuracy: 0.001)
+        XCTAssertEqual(reloadedStore.overlayStackMaxCount, 7)
+        XCTAssertEqual(reloadedStore.overlayStackDirection, .newestOnBottom)
         XCTAssertTrue(reloadedStore.showMouseClicks)
     }
 
@@ -156,6 +297,7 @@ final class KeyGlassHostedUITests: XCTestCase {
         settingsStore.overlayOpacity = 0.7
         settingsStore.fadeDelay = 2.0
         settingsStore.fadeDuration = 0.4
+        settingsStore.overlayStackDirection = .newestOnBottom
 
         let coordinator = AppCoordinator(
             launchConfiguration: LaunchConfiguration(
@@ -167,6 +309,7 @@ final class KeyGlassHostedUITests: XCTestCase {
             settingsStore: settingsStore,
             permissionManager: StubInputPermissionManager(state: .granted),
             eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
             formatter: KeystrokeFormatter(),
             overlayWindowController: overlayPresenter
         )
@@ -180,6 +323,7 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertEqual(lastSettings.overlayOpacity, 0.7, accuracy: 0.001)
         XCTAssertEqual(lastSettings.fadeDelay, 2.0, accuracy: 0.001)
         XCTAssertEqual(lastSettings.fadeDuration, 0.4, accuracy: 0.001)
+        XCTAssertEqual(lastSettings.stackDirection, .newestOnBottom)
     }
 
     func testTranslatedPreviewUsesFormatterTranslation() {
@@ -197,6 +341,7 @@ final class KeyGlassHostedUITests: XCTestCase {
             settingsStore: settingsStore,
             permissionManager: StubInputPermissionManager(state: .granted),
             eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
             formatter: formatter,
             overlayWindowController: overlayPresenter
         )
@@ -221,6 +366,7 @@ final class KeyGlassHostedUITests: XCTestCase {
             settingsStore: settingsStore,
             permissionManager: StubInputPermissionManager(state: .granted),
             eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
             formatter: KeystrokeFormatter(),
             overlayWindowController: overlayWindowController
         )
@@ -246,6 +392,7 @@ final class KeyGlassHostedUITests: XCTestCase {
             settingsStore: settingsStore,
             permissionManager: permissionManager,
             eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
             formatter: KeystrokeFormatter(),
             overlayWindowController: RecordingOverlayPresenter()
         )
@@ -272,6 +419,7 @@ final class KeyGlassHostedUITests: XCTestCase {
             settingsStore: settingsStore,
             permissionManager: StubInputPermissionManager(state: .granted),
             eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
             formatter: KeystrokeFormatter(),
             overlayWindowController: overlayWindowController
         )
@@ -299,6 +447,7 @@ final class KeyGlassHostedUITests: XCTestCase {
             settingsStore: settingsStore,
             permissionManager: StubInputPermissionManager(state: .granted),
             eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
             formatter: KeystrokeFormatter(),
             overlayWindowController: overlayPresenter
         )
@@ -311,6 +460,118 @@ final class KeyGlassHostedUITests: XCTestCase {
         coordinator.previewLeftClick()
         XCTAssertEqual(coordinator.lastPresentedText, "L Click")
         XCTAssertEqual(overlayPresenter.lastText, "L Click")
+        XCTAssertEqual(overlayPresenter.lastEntries.map(\.text), ["L Click"])
+    }
+
+    func testRapidPlainInputMergesIntoSingleHistoryEntry() {
+        let settingsStore = SettingsStore(defaults: defaults)
+        settingsStore.overlayMergeWindow = 0.6
+        let overlayPresenter = RecordingOverlayPresenter()
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: StubInputPermissionManager(state: .granted),
+            eventTapService: ScriptedEventTapService(script: "keyDown:0:none;keyDown:1:none;keyDown:2:none"),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: overlayPresenter
+        )
+
+        coordinator.toggleCaptureEnabled(true)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.4))
+
+        XCTAssertEqual(coordinator.lastPresentedText, "asd")
+        XCTAssertEqual(overlayPresenter.lastEntries.map(\.text), ["asd"])
+    }
+
+    func testSmallMergeWindowSplitsRapidInputIntoStackEntries() {
+        let settingsStore = SettingsStore(defaults: defaults)
+        settingsStore.overlayMergeWindow = 0.01
+        let overlayPresenter = RecordingOverlayPresenter()
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: StubInputPermissionManager(state: .granted),
+            eventTapService: ScriptedEventTapService(script: "keyDown:0:none;keyDown:1:none;keyDown:2:none"),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: overlayPresenter
+        )
+
+        coordinator.toggleCaptureEnabled(true)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.4))
+
+        XCTAssertEqual(coordinator.lastPresentedText, "d")
+        XCTAssertEqual(overlayPresenter.lastEntries.map(\.text), ["d", "s", "a"])
+    }
+
+    func testStackMaxCountDropsOldestEntries() {
+        let settingsStore = SettingsStore(defaults: defaults)
+        settingsStore.overlayMergeWindow = 0.01
+        settingsStore.overlayStackMaxCount = 2
+        let overlayPresenter = RecordingOverlayPresenter()
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: StubInputPermissionManager(state: .granted),
+            eventTapService: ScriptedEventTapService(script: "keyDown:0:none;keyDown:1:none;keyDown:2:none;keyDown:3:none"),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: overlayPresenter
+        )
+
+        coordinator.toggleCaptureEnabled(true)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+
+        XCTAssertEqual(overlayPresenter.lastEntries.map(\.text), ["f", "d"])
+    }
+
+    func testDragPausesOverlayExpiryUntilDropFinishes() throws {
+        let settingsStore = SettingsStore(defaults: defaults)
+        settingsStore.fadeDelay = 0.2
+        settingsStore.fadeDuration = 0.1
+        let overlayWindowController = OverlayWindowController()
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: StubInputPermissionManager(state: .granted),
+            eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: overlayWindowController
+        )
+
+        coordinator.previewCommandK()
+        XCTAssertEqual(overlayWindowController.testingDisplayedTexts, ["⌘K"])
+
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        overlayWindowController.onDraggingStateChange?(true)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.35))
+        XCTAssertEqual(overlayWindowController.testingDisplayedTexts, ["⌘K"])
+
+        overlayWindowController.onDraggingStateChange?(false)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.35))
+        XCTAssertTrue(overlayWindowController.testingDisplayedTexts.isEmpty)
     }
 
     func testPermissionRequiredStatePreventsCaptureStart() {
@@ -325,6 +586,7 @@ final class KeyGlassHostedUITests: XCTestCase {
             settingsStore: settingsStore,
             permissionManager: StubInputPermissionManager(state: .requiresApproval),
             eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
             formatter: KeystrokeFormatter(),
             overlayWindowController: RecordingOverlayPresenter()
         )
@@ -378,6 +640,7 @@ final class KeyGlassHostedUITests: XCTestCase {
             settingsStore: settingsStore,
             permissionManager: StubInputPermissionManager(state: .granted),
             eventTapService: ScriptedEventTapService(script: "keyDown:0:none"),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
             formatter: KeystrokeFormatter(),
             overlayWindowController: RecordingOverlayPresenter()
         )
@@ -406,6 +669,7 @@ final class KeyGlassHostedUITests: XCTestCase {
             settingsStore: SettingsStore(defaults: defaults),
             permissionManager: StubInputPermissionManager(state: .granted),
             eventTapService: eventTapService,
+            launchAtLoginManager: StubLaunchAtLoginManager(),
             formatter: formatter ?? KeystrokeFormatter(),
             overlayWindowController: overlayPresenter
         )
@@ -419,11 +683,15 @@ final class KeyGlassHostedUITests: XCTestCase {
 }
 
 private final class RecordingOverlayPresenter: OverlayPresenting {
-    private(set) var lastText: String?
+    private(set) var lastEntries: [OverlayHistoryEntry] = []
     private(set) var lastSettings: OverlayPresentationSettings?
 
-    func show(text: String, settings: OverlayPresentationSettings) {
-        lastText = text
+    var lastText: String? {
+        lastEntries.first?.text
+    }
+
+    func show(entries: [OverlayHistoryEntry], settings: OverlayPresentationSettings) {
+        lastEntries = entries
         lastSettings = settings
     }
 }

@@ -120,7 +120,7 @@ KeyGlass は、現代の macOS 上でプレゼンターが KeyCastr の代わり
 - upstream の Objective-C 実装を逐語的に Swift へ移植すること。
 - 旧 KeyCastr の visualizer plugin を読み込むこと。
 - upstream の設定ファイルや bundle 構造との互換維持。
-- 生のキーストローク履歴の保存や再生。
+- overlay の一時メモリ上スタックを超えて、生のキーストローク履歴を保存または再生すること。
 - secure input を迂回したり、保護対象のパスワード入力を露出させること。
 - クラウド同期、分析基盤、アカウント制御などサービス依存機能。
 - 一般的な automation や macro ツールへ拡張すること。
@@ -149,6 +149,7 @@ KeyGlass は、現代の macOS 上でプレゼンターが KeyCastr の代わり
 ### プライバシーと安全性
 
 - 生のキーストロークを永続保存しない。
+- 表示のために短命な in-memory overlay history を持つことはできるが、その履歴を disk へ書き出してはならない。
 - secure input の挙動を尊重し、保護された入力が取得または表示できないことを受け入れる。
 - 権限不足時に取得中のふりをせず、明確に失敗状態を示す。
 

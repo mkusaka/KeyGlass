@@ -1,12 +1,25 @@
 import AppKit
 import Foundation
 
+enum OverlayEntryMergeMode: Equatable {
+    case sequence
+    case isolated
+}
+
+struct OverlayHistoryEntry: Equatable, Identifiable {
+    let id: UUID
+    var text: String
+    var updatedAt: Date
+    let mergeMode: OverlayEntryMergeMode
+}
+
 struct OverlayPresentationSettings {
     let overlayAnchor: OverlayAnchor
     let overlayOpacity: Double
     let overlayFontSize: Double
     let fadeDelay: Double
     let fadeDuration: Double
+    let stackDirection: OverlayStackDirection
     let customOrigin: CGPoint?
 
     @MainActor
@@ -16,12 +29,13 @@ struct OverlayPresentationSettings {
         self.overlayFontSize = settingsStore.overlayFontSize
         self.fadeDelay = settingsStore.fadeDelay
         self.fadeDuration = settingsStore.fadeDuration
+        self.stackDirection = settingsStore.overlayStackDirection
         self.customOrigin = settingsStore.customOverlayOrigin
     }
 }
 
 protocol OverlayPresenting: AnyObject {
-    func show(text: String, settings: OverlayPresentationSettings)
+    func show(entries: [OverlayHistoryEntry], settings: OverlayPresentationSettings)
 }
 
 struct OverlayScreenSnapshot: Equatable {
@@ -72,58 +86,87 @@ enum OverlayPlacementCalculator {
 
 final class OverlayWindowController: OverlayPresenting {
     var onPositionChange: ((CGPoint) -> Void)?
+    var onDraggingStateChange: ((Bool) -> Void)?
 
-    private var window: NSPanel?
-    private var visualEffectView: NSVisualEffectView?
-    private var label: NSTextField?
-    private var pendingFadeWorkItem: DispatchWorkItem?
+    private var window: OverlayPanel?
+    private var contentView: FlippedContentView?
+    private var entryViews: [OverlayEntryView] = []
+    private var isDraggingWindow = false
 
     var testingWindow: NSWindow? {
         window
     }
 
-    func show(text: String, settings: OverlayPresentationSettings) {
-        let window = makeWindowIfNeeded()
-        let label = makeLabelIfNeeded()
-
-        label.stringValue = text
-        label.font = .monospacedSystemFont(ofSize: settings.overlayFontSize, weight: .semibold)
-        label.sizeToFit()
-        let contentSize = label.fittingSize
-        let windowSize = CGSize(
-            width: min(max(contentSize.width + 40, 140), 320),
-            height: max(contentSize.height + 28, 60)
-        )
-        window.setContentSize(windowSize)
-        label.frame = CGRect(
-            x: 20,
-            y: (windowSize.height - contentSize.height) / 2,
-            width: windowSize.width - 40,
-            height: contentSize.height
-        )
-        visualEffectView?.alphaValue = settings.overlayOpacity
-        updateWindowFrame(window: window, settings: settings)
-        pendingFadeWorkItem?.cancel()
-        window.alphaValue = 1
-        window.orderFrontRegardless()
-
-        let fadeWorkItem = DispatchWorkItem { [weak window] in
-            guard let window else { return }
-
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = settings.fadeDuration
-                window.animator().alphaValue = 0
-            } completionHandler: {
-                window.orderOut(nil)
-                window.alphaValue = 1
-            }
-        }
-
-        pendingFadeWorkItem = fadeWorkItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + settings.fadeDelay, execute: fadeWorkItem)
+    var testingDisplayedTexts: [String] {
+        entryViews.map(\.displayedText)
     }
 
-    private func makeWindowIfNeeded() -> NSPanel {
+    func show(entries: [OverlayHistoryEntry], settings: OverlayPresentationSettings) {
+        guard !entries.isEmpty else {
+            clearEntries()
+            window?.orderOut(nil)
+            return
+        }
+
+        let window = makeWindowIfNeeded()
+        let contentView = makeContentViewIfNeeded(window: window)
+        let orderedEntries = orderedEntries(from: entries, direction: settings.stackDirection)
+        let latestEntryID = entries.first?.id
+
+        clearEntries()
+
+        let newEntryViews = orderedEntries.map { entry in
+            let entryView = OverlayEntryView()
+            entryView.configure(
+                entry: entry,
+                isLatest: entry.id == latestEntryID,
+                settings: settings,
+                paused: isDraggingWindow
+            )
+            return entryView
+        }
+
+        let width = newEntryViews
+            .map(\.preferredSize.width)
+            .max() ?? 140
+        let gap: CGFloat = 10
+        var y: CGFloat = 0
+
+        for entryView in newEntryViews {
+            let height = entryView.preferredSize.height
+            entryView.frame = CGRect(x: 0, y: y, width: width, height: height)
+            entryView.applyLayout(width: width)
+            contentView.addSubview(entryView)
+            y += height + gap
+        }
+
+        entryViews = newEntryViews
+
+        let contentHeight = max(0, y - gap)
+        let windowSize = CGSize(width: width, height: contentHeight)
+        contentView.frame = CGRect(origin: .zero, size: windowSize)
+        window.setContentSize(windowSize)
+        updateWindowFrame(window: window, settings: settings)
+        window.orderFrontRegardless()
+    }
+
+    private func orderedEntries(from entries: [OverlayHistoryEntry], direction: OverlayStackDirection) -> [OverlayHistoryEntry] {
+        switch direction {
+        case .newestOnTop:
+            return entries
+        case .newestOnBottom:
+            return entries.reversed()
+        }
+    }
+
+    private func clearEntries() {
+        entryViews.forEach { entryView in
+            entryView.removeFromSuperview()
+        }
+        entryViews.removeAll()
+    }
+
+    private func makeWindowIfNeeded() -> OverlayPanel {
         if let window {
             return window
         }
@@ -142,41 +185,32 @@ final class OverlayWindowController: OverlayPresenting {
         panel.ignoresMouseEvents = false
         panel.isMovableByWindowBackground = true
         panel.hidesOnDeactivate = false
+        panel.onDraggingStateChange = { [weak self] isDragging in
+            self?.handleDraggingStateChange(isDragging)
+        }
 
-        let visualEffectView = NSVisualEffectView(frame: panel.contentView?.bounds ?? .zero)
-        visualEffectView.autoresizingMask = [.width, .height]
-        visualEffectView.material = .hudWindow
-        visualEffectView.blendingMode = .withinWindow
-        visualEffectView.state = .active
-        visualEffectView.wantsLayer = true
-        visualEffectView.layer?.cornerRadius = 16
-
-        panel.contentView = visualEffectView
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleWindowDidMove(_:)),
             name: NSWindow.didMoveNotification,
             object: panel
         )
+
         self.window = panel
-        self.visualEffectView = visualEffectView
         return panel
     }
 
-    private func makeLabelIfNeeded() -> NSTextField {
-        if let label {
-            return label
+    private func makeContentViewIfNeeded(window: NSPanel) -> FlippedContentView {
+        if let contentView {
+            return contentView
         }
 
-        let label = NSTextField(labelWithString: "")
-        label.alignment = .center
-        label.textColor = .white
-        label.lineBreakMode = .byTruncatingMiddle
-        label.frame = CGRect(x: 20, y: 22, width: 320, height: 48)
-        label.autoresizingMask = [.width, .height]
-        visualEffectView?.addSubview(label)
-        self.label = label
-        return label
+        let contentView = FlippedContentView(frame: window.contentView?.bounds ?? .zero)
+        contentView.wantsLayer = true
+        contentView.layer?.backgroundColor = NSColor.clear.cgColor
+        window.contentView = contentView
+        self.contentView = contentView
+        return contentView
     }
 
     private func updateWindowFrame(window: NSPanel, settings: OverlayPresentationSettings) {
@@ -202,6 +236,16 @@ final class OverlayWindowController: OverlayPresenting {
         window.setFrame(NSRect(origin: origin, size: size), display: true)
     }
 
+    private func handleDraggingStateChange(_ isDragging: Bool) {
+        isDraggingWindow = isDragging
+
+        entryViews.forEach { entryView in
+            entryView.setPaused(isDragging)
+        }
+
+        onDraggingStateChange?(isDragging)
+    }
+
     @objc
     private func handleWindowDidMove(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
@@ -209,12 +253,166 @@ final class OverlayWindowController: OverlayPresenting {
     }
 }
 
+private final class OverlayEntryView: NSVisualEffectView {
+    private let label = NSTextField(labelWithString: "")
+    private var pendingFadeWorkItem: DispatchWorkItem?
+    private var currentEntry: OverlayHistoryEntry?
+    private var currentSettings: OverlayPresentationSettings?
+    private var currentBaseAlpha: CGFloat = 1
+    private(set) var preferredSize = CGSize(width: 140, height: 60)
+
+    var displayedText: String {
+        label.stringValue
+    }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        setup()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setup()
+    }
+
+    deinit {
+        pendingFadeWorkItem?.cancel()
+    }
+
+    override var mouseDownCanMoveWindow: Bool {
+        true
+    }
+
+    func configure(
+        entry: OverlayHistoryEntry,
+        isLatest: Bool,
+        settings: OverlayPresentationSettings,
+        paused: Bool
+    ) {
+        currentEntry = entry
+        currentSettings = settings
+        currentBaseAlpha = CGFloat(settings.overlayOpacity) * (isLatest ? 1.0 : 0.78)
+
+        material = .hudWindow
+        blendingMode = .withinWindow
+        state = .active
+        wantsLayer = true
+        layer?.cornerRadius = 16
+
+        label.stringValue = entry.text
+        label.font = .monospacedSystemFont(
+            ofSize: max(14, settings.overlayFontSize - (isLatest ? 0 : 1)),
+            weight: isLatest ? .semibold : .medium
+        )
+        label.textColor = .white.withAlphaComponent(isLatest ? 1.0 : 0.92)
+        label.sizeToFit()
+
+        let contentSize = label.fittingSize
+        preferredSize = CGSize(
+            width: min(max(contentSize.width + 40, 140), 420),
+            height: max(contentSize.height + 28, 54)
+        )
+
+        if paused {
+            pendingFadeWorkItem?.cancel()
+            layer?.removeAllAnimations()
+        } else {
+            applyFadeSchedule()
+        }
+    }
+
+    func applyLayout(width: CGFloat) {
+        frame.size = CGSize(width: width, height: preferredSize.height)
+        label.frame = CGRect(
+            x: 20,
+            y: (preferredSize.height - label.fittingSize.height) / 2,
+            width: width - 40,
+            height: label.fittingSize.height
+        )
+    }
+
+    func setPaused(_ paused: Bool) {
+        guard currentEntry != nil, currentSettings != nil else { return }
+
+        if paused {
+            pendingFadeWorkItem?.cancel()
+            layer?.removeAllAnimations()
+            return
+        }
+
+        applyFadeSchedule()
+    }
+
+    private func setup() {
+        label.alignment = .center
+        label.lineBreakMode = .byTruncatingMiddle
+        addSubview(label)
+    }
+
+    private func applyFadeSchedule() {
+        guard let currentEntry, let currentSettings else { return }
+
+        pendingFadeWorkItem?.cancel()
+        layer?.removeAllAnimations()
+
+        let elapsed = Date().timeIntervalSince(currentEntry.updatedAt)
+        let fadeDelay = currentSettings.fadeDelay
+        let fadeDuration = currentSettings.fadeDuration
+        let fadeElapsed = elapsed - fadeDelay
+
+        if fadeElapsed >= fadeDuration {
+            alphaValue = 0
+            return
+        }
+
+        if fadeElapsed <= 0 {
+            alphaValue = currentBaseAlpha
+            let workItem = DispatchWorkItem { [weak self] in
+                self?.beginFade(duration: fadeDuration)
+            }
+            pendingFadeWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + (fadeDelay - elapsed), execute: workItem)
+            return
+        }
+
+        let progress = max(0, min(1, fadeElapsed / fadeDuration))
+        alphaValue = currentBaseAlpha * (1 - progress)
+        beginFade(duration: fadeDuration - fadeElapsed)
+    }
+
+    private func beginFade(duration: TimeInterval) {
+        guard duration > 0 else {
+            alphaValue = 0
+            return
+        }
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = duration
+            animator().alphaValue = 0
+        }
+    }
+}
+
+private final class FlippedContentView: NSView {
+    override var isFlipped: Bool {
+        true
+    }
+}
+
 private final class OverlayPanel: NSPanel {
+    var onDraggingStateChange: ((Bool) -> Void)?
+
     override var canBecomeKey: Bool {
         false
     }
 
     override var canBecomeMain: Bool {
         false
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        onDraggingStateChange?(true)
+        super.mouseDown(with: event)
+        onDraggingStateChange?(false)
     }
 }

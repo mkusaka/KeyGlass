@@ -22,6 +22,24 @@ enum DisplayMode: String, CaseIterable, Identifiable {
     }
 }
 
+enum OverlayStackDirection: String, CaseIterable, Identifiable {
+    case newestOnTop
+    case newestOnBottom
+
+    var id: String {
+        rawValue
+    }
+
+    var title: String {
+        switch self {
+        case .newestOnTop:
+            return "Newest On Top"
+        case .newestOnBottom:
+            return "Newest On Bottom"
+        }
+    }
+}
+
 enum OverlayAnchor: String, CaseIterable, Identifiable {
     case topCenter
     case bottomCenter
@@ -83,6 +101,18 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(fadeDuration, forKey: Keys.fadeDuration) }
     }
 
+    @Published var overlayMergeWindow: Double {
+        didSet { defaults.set(overlayMergeWindow, forKey: Keys.overlayMergeWindow) }
+    }
+
+    @Published var overlayStackMaxCount: Int {
+        didSet { defaults.set(overlayStackMaxCount, forKey: Keys.overlayStackMaxCount) }
+    }
+
+    @Published var overlayStackDirection: OverlayStackDirection {
+        didSet { defaults.set(overlayStackDirection.rawValue, forKey: Keys.overlayStackDirection) }
+    }
+
     @Published var displayMode: DisplayMode {
         didSet { defaults.set(displayMode.rawValue, forKey: Keys.displayMode) }
     }
@@ -109,6 +139,9 @@ final class SettingsStore: ObservableObject {
         self.overlayFontSize = defaults.object(forKey: Keys.overlayFontSize) as? Double ?? 22
         self.fadeDelay = defaults.object(forKey: Keys.fadeDelay) as? Double ?? 1.2
         self.fadeDuration = defaults.object(forKey: Keys.fadeDuration) as? Double ?? 0.22
+        self.overlayMergeWindow = defaults.object(forKey: Keys.overlayMergeWindow) as? Double ?? 0.6
+        self.overlayStackMaxCount = defaults.object(forKey: Keys.overlayStackMaxCount) as? Int ?? 5
+        self.overlayStackDirection = OverlayStackDirection(rawValue: defaults.string(forKey: Keys.overlayStackDirection) ?? "") ?? .newestOnTop
         self.displayMode = DisplayMode(rawValue: defaults.string(forKey: Keys.displayMode) ?? "") ?? .allKeys
         self.showMouseClicks = defaults.object(forKey: Keys.showMouseClicks) as? Bool ?? false
         self.hasPromptedForInputMonitoring = defaults.object(forKey: Keys.hasPromptedForInputMonitoring) as? Bool ?? false
@@ -122,6 +155,9 @@ final class SettingsStore: ObservableObject {
         static let overlayFontSize = "overlayFontSize"
         static let fadeDelay = "fadeDelay"
         static let fadeDuration = "fadeDuration"
+        static let overlayMergeWindow = "overlayMergeWindow"
+        static let overlayStackMaxCount = "overlayStackMaxCount"
+        static let overlayStackDirection = "overlayStackDirection"
         static let displayMode = "displayMode"
         static let showMouseClicks = "showMouseClicks"
         static let hasPromptedForInputMonitoring = "hasPromptedForInputMonitoring"

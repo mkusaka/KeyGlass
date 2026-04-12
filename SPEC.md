@@ -120,7 +120,7 @@ KeyGlass should be considered successful when a presenter can use it in place of
 - Rewriting the upstream Objective-C project line-by-line in Swift.
 - Loading legacy KeyCastr visualizer plugins.
 - Maintaining compatibility with upstream preference files or bundle structure.
-- Capturing, storing, or replaying raw keystroke history.
+- Capturing, storing, or replaying raw keystroke history beyond the transient in-memory overlay stack.
 - Bypassing secure input or attempting to expose protected password entry.
 - Adding cloud sync, analytics, account systems, or service-backed features.
 - Expanding the product into a general automation or macro tool.
@@ -149,6 +149,7 @@ KeyGlass should be considered successful when a presenter can use it in place of
 ### Privacy And Safety
 
 - The app must not persist raw captured keystrokes.
+- The app may keep a short-lived in-memory overlay history for display purposes, but that history must never be written to disk.
 - The app should respect secure input behavior and accept that some protected input cannot be captured or displayed.
 - The app should fail clearly when permissions are missing instead of pretending capture is active.
 

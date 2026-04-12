@@ -53,8 +53,34 @@ struct SettingsView: View {
                 )
                 .accessibilityIdentifier("capture-enabled-toggle")
 
-                Button("Request Permission") {
-                    coordinator.requestPermission()
+                statusRow(
+                    title: "Start at Login",
+                    value: coordinator.launchAtLoginDescription,
+                    identifier: "launch-at-login-state-value"
+                )
+
+                Toggle(
+                    "Start at Login",
+                    isOn: Binding(
+                        get: { coordinator.isLaunchAtLoginEnabled },
+                        set: { coordinator.toggleLaunchAtLogin($0) }
+                    )
+                )
+                .disabled(coordinator.launchAtLoginState == .unavailable)
+                .accessibilityIdentifier("launch-at-login-toggle")
+
+                if let launchAtLoginHint = coordinator.launchAtLoginHint {
+                    Text(launchAtLoginHint)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityLabel(launchAtLoginHint)
+                        .accessibilityValue(launchAtLoginHint)
+                        .accessibilityIdentifier("launch-at-login-hint")
+                }
+
+                Button(coordinator.permissionActionTitle) {
+                    coordinator.performPermissionAction()
                 }
                 .accessibilityIdentifier("request-permission-button")
             }
@@ -179,6 +205,31 @@ struct SettingsView: View {
                     step: 0.05,
                     identifier: "fade-duration-slider"
                 )
+
+                settingSlider(
+                    title: "Merge Window",
+                    value: $settingsStore.overlayMergeWindow,
+                    range: 0.1...1.5,
+                    step: 0.05,
+                    identifier: "merge-window-slider",
+                    valueIdentifier: "merge-window-value"
+                )
+
+                settingStepper(
+                    title: "Stack Size",
+                    value: $settingsStore.overlayStackMaxCount,
+                    range: 1...10,
+                    identifier: "stack-max-count-stepper",
+                    valueIdentifier: "stack-max-count-value"
+                )
+
+                Picker("Stack Direction", selection: $settingsStore.overlayStackDirection) {
+                    ForEach(OverlayStackDirection.allCases) { direction in
+                        Text(direction.title).tag(direction)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("stack-direction-picker")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -218,7 +269,8 @@ struct SettingsView: View {
         value: Binding<Double>,
         range: ClosedRange<Double>,
         step: Double = 1,
-        identifier: String
+        identifier: String,
+        valueIdentifier: String? = nil
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -227,12 +279,43 @@ struct SettingsView: View {
 
                 Spacer()
 
-                Text(value.wrappedValue, format: .number.precision(.fractionLength(2)))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
+                if let valueIdentifier {
+                    Text(value.wrappedValue, format: .number.precision(.fractionLength(2)))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier(valueIdentifier)
+                } else {
+                    Text(value.wrappedValue, format: .number.precision(.fractionLength(2)))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Slider(value: value, in: range, step: step)
+                .accessibilityIdentifier(identifier)
+        }
+    }
+
+    private func settingStepper(
+        title: String,
+        value: Binding<Int>,
+        range: ClosedRange<Int>,
+        identifier: String,
+        valueIdentifier: String
+    ) -> some View {
+        HStack {
+            Text(title)
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Text(String(value.wrappedValue))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier(valueIdentifier)
+
+            Stepper("", value: value, in: range)
+                .labelsHidden()
                 .accessibilityIdentifier(identifier)
         }
     }
