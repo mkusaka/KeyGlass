@@ -483,7 +483,10 @@ final class KeyGlassHostedUITests: XCTestCase {
         )
 
         coordinator.toggleCaptureEnabled(true)
-        RunLoop.current.run(until: Date().addingTimeInterval(0.4))
+        waitUntil {
+            coordinator.lastPresentedText == "asd"
+                && overlayPresenter.lastEntries.map(\.text) == ["asd"]
+        }
 
         XCTAssertEqual(coordinator.lastPresentedText, "asd")
         XCTAssertEqual(overlayPresenter.lastEntries.map(\.text), ["asd"])
@@ -509,7 +512,10 @@ final class KeyGlassHostedUITests: XCTestCase {
         )
 
         coordinator.toggleCaptureEnabled(true)
-        RunLoop.current.run(until: Date().addingTimeInterval(0.4))
+        waitUntil(timeout: 1.0) {
+            coordinator.lastPresentedText == "d"
+                && overlayPresenter.lastEntries.map(\.text) == ["d", "s", "a"]
+        }
 
         XCTAssertEqual(coordinator.lastPresentedText, "d")
         XCTAssertEqual(overlayPresenter.lastEntries.map(\.text), ["d", "s", "a"])
@@ -536,7 +542,9 @@ final class KeyGlassHostedUITests: XCTestCase {
         )
 
         coordinator.toggleCaptureEnabled(true)
-        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        waitUntil(timeout: 1.0) {
+            overlayPresenter.lastEntries.map(\.text) == ["f", "d"]
+        }
 
         XCTAssertEqual(overlayPresenter.lastEntries.map(\.text), ["f", "d"])
     }
@@ -601,7 +609,12 @@ final class KeyGlassHostedUITests: XCTestCase {
         let coordinator = makeCoordinator(eventTapService: ScriptedEventTapService(script: "keyDown:48:shift"))
 
         coordinator.toggleCaptureEnabled(true)
-        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        waitUntil {
+            coordinator.captureStatusDescription == "Running"
+                && coordinator.liveCaptureDiagnostics.keyDownCount == 1
+                && coordinator.liveCaptureDiagnostics.lastEventSummary == "keyDown keyCode=48 flags=shift"
+                && coordinator.lastPresentedText == "⇧⇥"
+        }
 
         XCTAssertEqual(coordinator.captureStatusDescription, "Running")
         XCTAssertEqual(coordinator.liveCaptureDiagnostics.keyDownCount, 1)
@@ -615,7 +628,13 @@ final class KeyGlassHostedUITests: XCTestCase {
         let coordinator = makeCoordinator(eventTapService: ScriptedEventTapService(script: "flagsChanged:56:shift"))
 
         coordinator.toggleCaptureEnabled(true)
-        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        waitUntil {
+            coordinator.liveCaptureDiagnostics.modifierEventCount == 1
+                && coordinator.liveCaptureDiagnostics.lastEventSummary == "flagsChanged keyCode=56 flags=shift"
+                && coordinator.lastPresentedText == "⇧"
+                && coordinator.liveCaptureHint
+                == "Only modifier events have been seen so far. Check Input Monitoring approval and whether the active app is using Secure Input."
+        }
 
         XCTAssertEqual(coordinator.liveCaptureDiagnostics.keyDownCount, 0)
         XCTAssertEqual(coordinator.liveCaptureDiagnostics.modifierEventCount, 1)
@@ -646,7 +665,10 @@ final class KeyGlassHostedUITests: XCTestCase {
         )
 
         coordinator.toggleCaptureEnabled(true)
-        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        waitUntil {
+            coordinator.liveCaptureDiagnostics.keyDownCount == 1
+                && coordinator.liveCaptureDiagnostics.lastEventSummary == "keyDown keyCode=0 flags=none"
+        }
 
         XCTAssertEqual(coordinator.liveCaptureDiagnostics.keyDownCount, 1)
         XCTAssertEqual(coordinator.lastPresentedText, "No input yet")
@@ -679,6 +701,22 @@ final class KeyGlassHostedUITests: XCTestCase {
         NSApp.windows.reversed().first { window in
             window.title == "KeyGlass" && window.isVisible
         }
+    }
+
+    private func waitUntil(
+        timeout: TimeInterval = 0.8,
+        pollInterval: TimeInterval = 0.02,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        _ condition: () -> Bool
+    ) {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        while !condition(), Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(pollInterval))
+        }
+
+        XCTAssertTrue(condition(), file: file, line: line)
     }
 }
 
