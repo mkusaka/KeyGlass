@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import OSLog
+import Sparkle
 
 @MainActor
 final class AppCoordinator: NSObject, ObservableObject {
@@ -19,6 +20,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     private let formatter: KeystrokeFormatter
     private let overlayWindowController: OverlayPresenting
     private let openExternalURL: (URL) -> Bool
+    private let updaterController: SPUStandardUpdaterController
     private lazy var settingsWindowController = SettingsWindowController(
         coordinator: self,
         settingsStore: settingsStore
@@ -49,6 +51,11 @@ final class AppCoordinator: NSObject, ObservableObject {
         self.formatter = formatter
         self.overlayWindowController = overlayWindowController
         self.openExternalURL = openExternalURL
+        updaterController = SPUStandardUpdaterController(
+            startingUpdater: false,
+            updaterDelegate: nil,
+            userDriverDelegate: nil
+        )
         permissionState = permissionManager.currentState()
         launchAtLoginState = launchAtLoginManager.currentState()
         super.init()
@@ -107,6 +114,10 @@ final class AppCoordinator: NSObject, ObservableObject {
         statusItem?.menu?.items ?? []
     }
 
+    var testingCanCheckForUpdates: Bool {
+        updaterController.updater.canCheckForUpdates
+    }
+
     func applicationDidFinishLaunching() {
         let isUITestMode = launchConfiguration.isUITestMode
         let captureEnabled = settingsStore.captureEnabled
@@ -118,6 +129,8 @@ final class AppCoordinator: NSObject, ObservableObject {
 
         if launchConfiguration.isUITestMode {
             NSApp.setActivationPolicy(.regular)
+        } else {
+            try? updaterController.updater.start()
         }
 
         configureStatusItemIfNeeded()
@@ -508,13 +521,8 @@ final class AppCoordinator: NSObject, ObservableObject {
 
         let menu = NSMenu()
 
-        let statusLine = NSMenuItem(title: "Status: \(captureStatusDescription)", action: nil, keyEquivalent: "")
-        statusLine.isEnabled = false
-        menu.addItem(statusLine)
-
-        let permissionLine = NSMenuItem(title: "Permission: \(permissionDescription)", action: nil, keyEquivalent: "")
-        permissionLine.isEnabled = false
-        menu.addItem(permissionLine)
+        menu.addItem(disabledMenuItem(title: "Status: \(captureStatusDescription)"))
+        menu.addItem(disabledMenuItem(title: "Permission: \(permissionDescription)"))
 
         menu.addItem(.separator())
 
@@ -543,6 +551,14 @@ final class AppCoordinator: NSObject, ObservableObject {
         permissionItem.target = self
         menu.addItem(permissionItem)
 
+        let checkForUpdatesItem = NSMenuItem(
+            title: "Check for Updates…",
+            action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
+            keyEquivalent: ""
+        )
+        checkForUpdatesItem.target = updaterController
+        menu.addItem(checkForUpdatesItem)
+
         menu.addItem(.separator())
 
         let quitItem = NSMenuItem(
@@ -559,6 +575,12 @@ final class AppCoordinator: NSObject, ObservableObject {
             accessibilityDescription: "KeyGlass"
         )
         statusItem.button?.title = ""
+    }
+
+    private func disabledMenuItem(title: String) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        return item
     }
 }
 

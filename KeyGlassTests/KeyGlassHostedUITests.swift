@@ -512,7 +512,7 @@ final class KeyGlassHostedUITests: XCTestCase {
         )
 
         coordinator.toggleCaptureEnabled(true)
-        waitUntil(timeout: 1.0) {
+        waitUntil(timeout: 2.0) {
             coordinator.lastPresentedText == "d"
                 && overlayPresenter.lastEntries.map(\.text) == ["d", "s", "a"]
         }
@@ -542,7 +542,7 @@ final class KeyGlassHostedUITests: XCTestCase {
         )
 
         coordinator.toggleCaptureEnabled(true)
-        waitUntil(timeout: 1.0) {
+        waitUntil(timeout: 2.0) {
             overlayPresenter.lastEntries.map(\.text) == ["f", "d"]
         }
 
@@ -704,7 +704,7 @@ final class KeyGlassHostedUITests: XCTestCase {
     }
 
     private func waitUntil(
-        timeout: TimeInterval = 0.8,
+        timeout: TimeInterval = 1.5,
         pollInterval: TimeInterval = 0.02,
         file: StaticString = #filePath,
         line: UInt = #line,

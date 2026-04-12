@@ -35,6 +35,7 @@ Release automation signs the app with a Developer ID certificate and notarizes i
 - Optional mouse click visualization
 - Drag-to-reposition behavior that pauses automatic fade while the overlay is being moved
 - Settings window with built-in preview actions
+- Sparkle-powered in-app update checks
 
 ## Architecture
 
@@ -76,8 +77,11 @@ Signed releases require these GitHub repository secrets:
 - `APPLE_APP_STORE_CONNECT_KEY_ID`
 - `APPLE_APP_STORE_CONNECT_ISSUER_ID`
 - `HOMEBREW_TAP_TOKEN`
+- `SPARKLE_ED_PRIVATE_KEY`
 
-Manual `workflow_dispatch` runs validate archive, export, signing, notarization, and stapling without creating a GitHub Release or updating the Homebrew tap. Tag pushes matching `v*` also publish the release asset and update the tap cask. The first successful signed tag release is what makes `brew install --cask mkusaka/tap/keyglass` work end-to-end.
+KeyGlass currently shares the same Sparkle public key as `keypunch`, so `SPARKLE_ED_PRIVATE_KEY` must match that existing private key.
+
+Manual `workflow_dispatch` runs validate archive, export, signing, notarization, and stapling without creating a GitHub Release, updating the Homebrew tap, or publishing the Sparkle appcast. Tag pushes matching `v*` also publish the release asset, update the tap cask, and deploy `appcast.xml` to the `gh-pages` branch. The first successful signed tag release is what makes `brew install --cask mkusaka/tap/keyglass` work end-to-end.
 
 ## Development
 
