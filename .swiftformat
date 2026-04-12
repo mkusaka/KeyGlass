@@ -1,3 +1,2 @@
 --swiftversion 5.9
 --exclude .build,DerivedData
---disable redundantSelf

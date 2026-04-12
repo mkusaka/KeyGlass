@@ -108,8 +108,12 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     func applicationDidFinishLaunching() {
+        let isUITestMode = launchConfiguration.isUITestMode
+        let captureEnabled = settingsStore.captureEnabled
+        let hasPromptedForInputMonitoring = settingsStore.hasPromptedForInputMonitoring
+
         logger.notice(
-            "applicationDidFinishLaunching uiTestMode=\(self.launchConfiguration.isUITestMode, privacy: .public) captureEnabled=\(self.settingsStore.captureEnabled, privacy: .public) hasPrompted=\(self.settingsStore.hasPromptedForInputMonitoring, privacy: .public)"
+            "applicationDidFinishLaunching uiTestMode=\(isUITestMode, privacy: .public) captureEnabled=\(captureEnabled, privacy: .public) hasPrompted=\(hasPromptedForInputMonitoring, privacy: .public)"
         )
 
         if launchConfiguration.isUITestMode {
@@ -138,11 +142,11 @@ final class AppCoordinator: NSObject, ObservableObject {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
                 guard let self else { return }
 
-                if self.launchConfiguration.isUITestMode {
+                if launchConfiguration.isUITestMode {
                     NSApp.activate(ignoringOtherApps: true)
                     NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
                 } else {
-                    self.openSettings()
+                    openSettings()
                 }
             }
         }
@@ -154,12 +158,15 @@ final class AppCoordinator: NSObject, ObservableObject {
 
     func requestPermission() {
         let preflightState = permissionManager.currentState()
+        let captureEnabled = settingsStore.captureEnabled
+
         logger.notice(
-            "requestPermission started captureEnabled=\(self.settingsStore.captureEnabled, privacy: .public) currentPermission=\(preflightState.description, privacy: .public)"
+            "requestPermission started captureEnabled=\(captureEnabled, privacy: .public) currentPermission=\(preflightState.description, privacy: .public)"
         )
         settingsStore.hasPromptedForInputMonitoring = true
         permissionState = permissionManager.requestAccess()
-        logger.notice("requestPermission finished permission=\(self.permissionState.description, privacy: .public)")
+        let permissionDescription = permissionState.description
+        logger.notice("requestPermission finished permission=\(permissionDescription, privacy: .public)")
         syncCaptureState(reason: "requestPermission")
     }
 
@@ -301,11 +308,18 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     private func syncCaptureState(reason: String = "unspecified") {
+        let captureEnabled = settingsStore.captureEnabled
+        let permissionDescription = permissionState.description
+        let eventTapRunning = eventTapService.isRunning
+
         logger.notice(
-            "syncCaptureState reason=\(reason, privacy: .public) captureEnabled=\(self.settingsStore.captureEnabled, privacy: .public) lastKnownPermission=\(self.permissionState.description, privacy: .public) eventTapRunning=\(self.eventTapService.isRunning, privacy: .public)"
+            "syncCaptureState reason=\(reason, privacy: .public) captureEnabled=\(captureEnabled, privacy: .public) lastKnownPermission=\(permissionDescription, privacy: .public) eventTapRunning=\(eventTapRunning, privacy: .public)"
         )
         refreshPermissionState()
-        logger.notice("syncCaptureState refreshedPermission=\(self.permissionState.description, privacy: .public)")
+        let refreshedPermissionDescription = permissionState.description
+        logger.notice(
+            "syncCaptureState refreshedPermission=\(refreshedPermissionDescription, privacy: .public)"
+        )
 
         guard settingsStore.captureEnabled else {
             logger.notice("syncCaptureState stopping capture because captureEnabled is false")
