@@ -286,6 +286,15 @@ final class AppCoordinator: NSObject, ObservableObject {
         NSApp.terminate(nil)
     }
 
+    @objc
+    func handleAboutMenuAction(_: Any?) {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(options: [
+            .applicationVersion: "\(BuildInfo.version) (\(BuildInfo.gitCommitHash))",
+            .version: "",
+        ])
+    }
+
     private func configureStatusItemIfNeeded() {
         guard statusItem == nil else { return }
 
@@ -526,29 +535,26 @@ final class AppCoordinator: NSObject, ObservableObject {
 
         menu.addItem(.separator())
 
-        let toggleItem = NSMenuItem(
+        let toggleItem = actionMenuItem(
             title: "Enable Capture",
             action: #selector(handleToggleCaptureMenuAction(_:)),
             keyEquivalent: ""
         )
         toggleItem.state = settingsStore.captureEnabled ? .on : .off
-        toggleItem.target = self
         menu.addItem(toggleItem)
 
-        let settingsItem = NSMenuItem(
+        let settingsItem = actionMenuItem(
             title: "Open Settings",
             action: #selector(handleOpenSettingsMenuAction(_:)),
             keyEquivalent: ","
         )
-        settingsItem.target = self
         menu.addItem(settingsItem)
 
-        let permissionItem = NSMenuItem(
+        let permissionItem = actionMenuItem(
             title: permissionActionTitle,
             action: #selector(handleRequestPermissionMenuAction(_:)),
             keyEquivalent: ""
         )
-        permissionItem.target = self
         menu.addItem(permissionItem)
 
         let checkForUpdatesItem = NSMenuItem(
@@ -559,14 +565,20 @@ final class AppCoordinator: NSObject, ObservableObject {
         checkForUpdatesItem.target = updaterController
         menu.addItem(checkForUpdatesItem)
 
+        let aboutItem = actionMenuItem(
+            title: "About KeyGlass",
+            action: #selector(handleAboutMenuAction(_:)),
+            keyEquivalent: ""
+        )
+        menu.addItem(aboutItem)
+
         menu.addItem(.separator())
 
-        let quitItem = NSMenuItem(
+        let quitItem = actionMenuItem(
             title: "Quit KeyGlass",
             action: #selector(handleQuitMenuAction(_:)),
             keyEquivalent: "q"
         )
-        quitItem.target = self
         menu.addItem(quitItem)
 
         statusItem.menu = menu
@@ -580,6 +592,12 @@ final class AppCoordinator: NSObject, ObservableObject {
     private func disabledMenuItem(title: String) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = false
+        return item
+    }
+
+    private func actionMenuItem(title: String, action: Selector, keyEquivalent: String) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: keyEquivalent)
+        item.target = self
         return item
     }
 }

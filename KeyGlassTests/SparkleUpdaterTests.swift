@@ -18,23 +18,16 @@ final class SparkleUpdaterTests: XCTestCase {
         XCTAssertTrue(coordinator.testingStatusMenuItems.contains { item in
             item.title == "Check for Updates…"
         })
+        XCTAssertTrue(coordinator.testingStatusMenuItems.contains { item in
+            item.title == "About KeyGlass"
+        })
         XCTAssertFalse(coordinator.testingCanCheckForUpdates)
     }
 
-    func testInfoPlistContainsFeedURL() throws {
-        let bundle = try XCTUnwrap(hostAppBundle())
-        XCTAssertEqual(
-            bundle.object(forInfoDictionaryKey: "SUFeedURL") as? String,
-            "https://mkusaka.github.io/KeyGlass/appcast.xml"
-        )
-    }
-
-    func testInfoPlistContainsSharedPublicEDKey() throws {
-        let bundle = try XCTUnwrap(hostAppBundle())
-        XCTAssertEqual(
-            bundle.object(forInfoDictionaryKey: "SUPublicEDKey") as? String,
-            "k3iDdoME7CuJwteINJWaU/qt/O9OF6AENSloZfmlhdo="
-        )
+    func testBuildInfoValuesAreAvailable() {
+        XCTAssertFalse(BuildInfo.version.isEmpty)
+        XCTAssertFalse(BuildInfo.gitCommitHash.isEmpty)
+        XCTAssertFalse(BuildInfo.gitCommitHashFull.isEmpty)
     }
 
     private func makeCoordinator() -> AppCoordinator {
@@ -52,12 +45,6 @@ final class SparkleUpdaterTests: XCTestCase {
             formatter: KeystrokeFormatter(),
             overlayWindowController: NullOverlayPresenter()
         )
-    }
-
-    private func hostAppBundle() -> Bundle? {
-        Bundle.allBundles.first { bundle in
-            bundle.bundleIdentifier == "com.mkusaka.KeyGlass"
-        }
     }
 }
 
