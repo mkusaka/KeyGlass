@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
+import KeyGlassSparkle
 import OSLog
-import Sparkle
 
 @MainActor
 final class AppCoordinator: NSObject, ObservableObject {
@@ -20,7 +20,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     private let formatter: KeystrokeFormatter
     private let overlayWindowController: OverlayPresenting
     private let openExternalURL: (URL) -> Bool
-    private let updaterController: SPUStandardUpdaterController
+    private let updaterController: SparkleUpdater
     private lazy var settingsWindowController = SettingsWindowController(
         coordinator: self,
         settingsStore: settingsStore
@@ -51,11 +51,7 @@ final class AppCoordinator: NSObject, ObservableObject {
         self.formatter = formatter
         self.overlayWindowController = overlayWindowController
         self.openExternalURL = openExternalURL
-        updaterController = SPUStandardUpdaterController(
-            startingUpdater: false,
-            updaterDelegate: nil,
-            userDriverDelegate: nil
-        )
+        updaterController = SparkleUpdater(startingUpdater: false)
         permissionState = permissionManager.currentState()
         launchAtLoginState = launchAtLoginManager.currentState()
         super.init()
@@ -115,7 +111,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     var testingCanCheckForUpdates: Bool {
-        updaterController.updater.canCheckForUpdates
+        updaterController.canCheckForUpdates
     }
 
     func applicationDidFinishLaunching() {
@@ -130,7 +126,7 @@ final class AppCoordinator: NSObject, ObservableObject {
         if launchConfiguration.isUITestMode {
             NSApp.setActivationPolicy(.regular)
         } else {
-            try? updaterController.updater.start()
+            try? updaterController.start()
         }
 
         configureStatusItemIfNeeded()
@@ -559,7 +555,7 @@ final class AppCoordinator: NSObject, ObservableObject {
 
         let checkForUpdatesItem = NSMenuItem(
             title: "Check for Updates…",
-            action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
+            action: #selector(SparkleUpdater.checkForUpdates(_:)),
             keyEquivalent: ""
         )
         checkForUpdatesItem.target = updaterController

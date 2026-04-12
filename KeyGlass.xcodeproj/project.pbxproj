@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		B3E53B102F8A000100000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = B3E53B102F8A000100000002 /* Sparkle */; };
+		C41B9E4A2F8A200100000001 /* KeyGlassSparkle in Frameworks */ = {isa = PBXBuildFile; productRef = C41B9E4A2F8A200100000002 /* KeyGlassSparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,7 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B3E53B102F8A000100000001 /* Sparkle in Frameworks */,
+				C41B9E4A2F8A200100000001 /* KeyGlassSparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,7 +119,7 @@
 			);
 			name = KeyGlass;
 			packageProductDependencies = (
-				B3E53B102F8A000100000002 /* Sparkle */,
+				C41B9E4A2F8A200100000002 /* KeyGlassSparkle */,
 			);
 			productName = KeyGlass;
 			productReference = 7A6282A22F7AF9D3007CEAA5 /* KeyGlass.app */;
@@ -204,7 +204,7 @@
 			mainGroup = 7A6282992F7AF9D3007CEAA5;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				B3E53B102F8A000100000003 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				C41B9E4A2F8A200100000003 /* XCLocalSwiftPackageReference "Dependencies/KeyGlassSparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7A6282A32F7AF9D3007CEAA5 /* Products */;
@@ -593,22 +593,17 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		B3E53B102F8A000100000003 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sparkle-project/Sparkle";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.9.0;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		C41B9E4A2F8A200100000003 /* XCLocalSwiftPackageReference "Dependencies/KeyGlassSparkle" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Dependencies/KeyGlassSparkle;
 		};
-/* End XCRemoteSwiftPackageReference section */
+/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		B3E53B102F8A000100000002 /* Sparkle */ = {
+		C41B9E4A2F8A200100000002 /* KeyGlassSparkle */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B3E53B102F8A000100000003 /* XCRemoteSwiftPackageReference "Sparkle" */;
-			productName = Sparkle;
+			productName = KeyGlassSparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

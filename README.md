@@ -57,6 +57,8 @@ Release automation signs the app with a Developer ID certificate and notarizes i
 
 This repository uses `mise` to pin the CLI tools used for linting and formatting.
 
+`Sparkle` is declared in `Dependencies/KeyGlassSparkle/Package.swift` so Renovate can track it with the built-in Swift manager.
+
 ```bash
 brew install mise
 mise trust
