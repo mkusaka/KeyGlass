@@ -17,9 +17,9 @@ enum InputPermissionState: Equatable {
     var description: String {
         switch self {
         case .granted:
-            return "Granted"
+            "Granted"
         case .requiresApproval:
-            return "Input Monitoring required"
+            "Input Monitoring required"
         }
     }
 }
@@ -46,12 +46,10 @@ struct SystemInputPermissionManager: InputPermissionManaging {
     private let logger = Logger(subsystem: "com.mkusaka.KeyGlass", category: "InputPermission")
 
     func currentState() -> InputPermissionState {
-        let state: InputPermissionState
-
-        if #available(macOS 10.15, *) {
-            state = CGPreflightListenEventAccess() ? .granted : .requiresApproval
+        let state: InputPermissionState = if #available(macOS 10.15, *) {
+            CGPreflightListenEventAccess() ? .granted : .requiresApproval
         } else {
-            state = AXIsProcessTrusted() ? .granted : .requiresApproval
+            AXIsProcessTrusted() ? .granted : .requiresApproval
         }
 
         logger.notice("currentState -> \(state.description, privacy: .public)")

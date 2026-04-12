@@ -50,7 +50,7 @@ final class AppContainer {
         let overlayWindowController = OverlayWindowController()
 
         self.settingsStore = settingsStore
-        self.coordinator = AppCoordinator(
+        coordinator = AppCoordinator(
             launchConfiguration: launchConfiguration,
             settingsStore: settingsStore,
             permissionManager: permissionManager,
@@ -102,16 +102,16 @@ struct LaunchConfiguration {
         let arguments = Set(processInfo.arguments)
         let environment = processInfo.environment
 
-        self.isUITestMode = arguments.contains("--ui-testing") || environment["KEYGLASS_UI_TEST_MODE"] == "1"
-        self.shouldOpenSettingsOnLaunch = isUITestMode || arguments.contains("--open-settings-on-launch")
-        self.shouldResetDefaults = isUITestMode || arguments.contains("--reset-defaults")
-        self.defaultsSuiteName = environment["KEYGLASS_DEFAULTS_SUITE"] ?? "com.mkusaka.KeyGlass"
-        self.uiTestCaptureScript = environment["KEYGLASS_UI_TEST_CAPTURE_SCRIPT"]
-        self.initialCaptureEnabledOverride = Self.boolOverride(from: environment["KEYGLASS_UI_TEST_CAPTURE_ENABLED"])
-        self.initialDisplayModeOverride = environment["KEYGLASS_UI_TEST_DISPLAY_MODE"].flatMap(DisplayMode.init(rawValue:))
-        self.initialOverlayMergeWindowOverride = Self.doubleOverride(from: environment["KEYGLASS_UI_TEST_MERGE_WINDOW"])
-        self.initialOverlayStackMaxCountOverride = Self.intOverride(from: environment["KEYGLASS_UI_TEST_STACK_MAX_COUNT"])
-        self.initialOverlayStackDirectionOverride = environment["KEYGLASS_UI_TEST_STACK_DIRECTION"].flatMap(OverlayStackDirection.init(rawValue:))
+        isUITestMode = arguments.contains("--ui-testing") || environment["KEYGLASS_UI_TEST_MODE"] == "1"
+        shouldOpenSettingsOnLaunch = isUITestMode || arguments.contains("--open-settings-on-launch")
+        shouldResetDefaults = isUITestMode || arguments.contains("--reset-defaults")
+        defaultsSuiteName = environment["KEYGLASS_DEFAULTS_SUITE"] ?? "com.mkusaka.KeyGlass"
+        uiTestCaptureScript = environment["KEYGLASS_UI_TEST_CAPTURE_SCRIPT"]
+        initialCaptureEnabledOverride = Self.boolOverride(from: environment["KEYGLASS_UI_TEST_CAPTURE_ENABLED"])
+        initialDisplayModeOverride = environment["KEYGLASS_UI_TEST_DISPLAY_MODE"].flatMap(DisplayMode.init(rawValue:))
+        initialOverlayMergeWindowOverride = Self.doubleOverride(from: environment["KEYGLASS_UI_TEST_MERGE_WINDOW"])
+        initialOverlayStackMaxCountOverride = Self.intOverride(from: environment["KEYGLASS_UI_TEST_STACK_MAX_COUNT"])
+        initialOverlayStackDirectionOverride = environment["KEYGLASS_UI_TEST_STACK_DIRECTION"].flatMap(OverlayStackDirection.init(rawValue:))
     }
 
     func makeUserDefaults() -> UserDefaults {

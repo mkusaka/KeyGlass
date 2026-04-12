@@ -1,6 +1,6 @@
 import CoreGraphics
-import XCTest
 @testable import KeyGlass
+import XCTest
 
 final class OverlayPlacementCalculatorTests: XCTestCase {
     func testTargetVisibleFrameUsesScreenContainingMouse() {

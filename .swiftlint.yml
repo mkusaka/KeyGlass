@@ -1,0 +1,28 @@
+excluded:
+  - .build
+  - DerivedData
+
+disabled_rules:
+  # Keep these disabled because they conflict with the repository's SwiftFormat output.
+  - trailing_comma
+  - opening_brace
+
+  # Keep these disabled for now because the current codebase still has a few
+  # intentionally long log/UI lines and some large files/types that would need
+  # structural refactors rather than formatter-only fixes.
+  - line_length
+  - file_length
+  - type_body_length
+
+opt_in_rules:
+  - first_where
+  - last_where
+  - shorthand_optional_binding
+
+identifier_name:
+  min_length:
+    warning: 1
+  excluded:
+    - id
+
+reporter: xcode

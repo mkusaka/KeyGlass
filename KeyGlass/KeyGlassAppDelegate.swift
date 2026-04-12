@@ -2,18 +2,18 @@ import AppKit
 
 @MainActor
 final class KeyGlassAppDelegate: NSObject, NSApplicationDelegate {
-    func applicationWillFinishLaunching(_ notification: Notification) {
+    func applicationWillFinishLaunching(_: Notification) {
         let launchConfiguration = LaunchConfiguration(processInfo: .processInfo)
         if launchConfiguration.isUITestMode {
             NSApp.setActivationPolicy(.regular)
         }
     }
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_: Notification) {
         AppContainer.shared.coordinator.applicationDidFinishLaunching()
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+    func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
         false
     }
 }

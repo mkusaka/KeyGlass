@@ -49,8 +49,8 @@ final class AppCoordinator: NSObject, ObservableObject {
         self.formatter = formatter
         self.overlayWindowController = overlayWindowController
         self.openExternalURL = openExternalURL
-        self.permissionState = permissionManager.currentState()
-        self.launchAtLoginState = launchAtLoginManager.currentState()
+        permissionState = permissionManager.currentState()
+        launchAtLoginState = launchAtLoginManager.currentState()
         super.init()
 
         if let overlayWindowController = overlayWindowController as? OverlayWindowController {
@@ -123,7 +123,8 @@ final class AppCoordinator: NSObject, ObservableObject {
 
         if !launchConfiguration.isUITestMode,
            !permissionState.isGranted,
-           !settingsStore.hasPromptedForInputMonitoring {
+           !settingsStore.hasPromptedForInputMonitoring
+        {
             settingsStore.hasPromptedForInputMonitoring = true
             settingsStore.captureEnabled = true
 
@@ -246,22 +247,22 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     @objc
-    func handleOpenSettingsMenuAction(_ sender: Any?) {
+    func handleOpenSettingsMenuAction(_: Any?) {
         openSettings()
     }
 
     @objc
-    func handleRequestPermissionMenuAction(_ sender: Any?) {
+    func handleRequestPermissionMenuAction(_: Any?) {
         performPermissionAction()
     }
 
     @objc
-    func handleToggleCaptureMenuAction(_ sender: Any?) {
+    func handleToggleCaptureMenuAction(_: Any?) {
         toggleCaptureEnabled(!settingsStore.captureEnabled)
     }
 
     @objc
-    func handleQuitMenuAction(_ sender: Any?) {
+    func handleQuitMenuAction(_: Any?) {
         NSApp.terminate(nil)
     }
 
@@ -403,7 +404,7 @@ final class AppCoordinator: NSObject, ObservableObject {
 
     private func isSequenceEligible(_ capturedInput: CapturedInput) -> Bool {
         guard capturedInput.kind == .keyDown else { return false }
-        return capturedInput.modifierFlags.intersection([.command, .control]).isEmpty
+        return capturedInput.modifierFlags.isDisjoint(with: [.command, .control])
     }
 
     private func trimOverlayHistoryIfNeeded() {
@@ -556,13 +557,13 @@ enum CaptureRuntimeState: Equatable {
     var description: String {
         switch self {
         case .stopped:
-            return "Stopped"
+            "Stopped"
         case .running:
-            return "Running"
+            "Running"
         case .permissionRequired:
-            return "Permission required"
+            "Permission required"
         case let .failed(message):
-            return message
+            message
         }
     }
 }
@@ -597,15 +598,15 @@ private extension CapturedInputKind {
     var debugName: String {
         switch self {
         case .keyDown:
-            return "keyDown"
+            "keyDown"
         case .flagsChanged:
-            return "flagsChanged"
+            "flagsChanged"
         case .leftMouseDown:
-            return "leftMouseDown"
+            "leftMouseDown"
         case .rightMouseDown:
-            return "rightMouseDown"
+            "rightMouseDown"
         case .otherMouseDown:
-            return "otherMouseDown"
+            "otherMouseDown"
         }
     }
 }

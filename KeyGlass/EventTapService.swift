@@ -23,7 +23,7 @@ enum EventTapError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .tapCreationFailed:
-            return "Failed to create the event tap."
+            "Failed to create the event tap."
         }
     }
 }
@@ -37,7 +37,7 @@ protocol EventTapServicing: AnyObject {
 final class NoOpEventTapService: EventTapServicing {
     private(set) var isRunning = false
 
-    func start(handler: @escaping (CapturedInput) -> Void) throws {
+    func start(handler _: @escaping (CapturedInput) -> Void) throws {
         isRunning = true
     }
 
@@ -205,7 +205,7 @@ final class ScriptedEventTapService: EventTapServicing {
 
         for (index, input) in script.enumerated() {
             let workItem = DispatchWorkItem { [weak self] in
-                guard let self, self.isRunning else { return }
+                guard let self, isRunning else { return }
                 self.handler?(input)
             }
 

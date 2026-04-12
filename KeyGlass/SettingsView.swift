@@ -178,14 +178,14 @@ struct SettingsView: View {
                 settingSlider(
                     title: "Font Size",
                     value: $settingsStore.overlayFontSize,
-                    range: 16...40,
+                    range: 16 ... 40,
                     identifier: "font-size-slider"
                 )
 
                 settingSlider(
                     title: "Opacity",
                     value: $settingsStore.overlayOpacity,
-                    range: 0.4...1.0,
+                    range: 0.4 ... 1.0,
                     step: 0.05,
                     identifier: "opacity-slider"
                 )
@@ -193,7 +193,7 @@ struct SettingsView: View {
                 settingSlider(
                     title: "Fade Delay",
                     value: $settingsStore.fadeDelay,
-                    range: 0.2...2.5,
+                    range: 0.2 ... 2.5,
                     step: 0.1,
                     identifier: "fade-delay-slider"
                 )
@@ -201,7 +201,7 @@ struct SettingsView: View {
                 settingSlider(
                     title: "Fade Duration",
                     value: $settingsStore.fadeDuration,
-                    range: 0.1...1.0,
+                    range: 0.1 ... 1.0,
                     step: 0.05,
                     identifier: "fade-duration-slider"
                 )
@@ -209,7 +209,7 @@ struct SettingsView: View {
                 settingSlider(
                     title: "Merge Window",
                     value: $settingsStore.overlayMergeWindow,
-                    range: 0.1...1.5,
+                    range: 0.1 ... 1.5,
                     step: 0.05,
                     identifier: "merge-window-slider",
                     valueIdentifier: "merge-window-value"
@@ -218,7 +218,7 @@ struct SettingsView: View {
                 settingStepper(
                     title: "Stack Size",
                     value: $settingsStore.overlayStackMaxCount,
-                    range: 1...10,
+                    range: 1 ... 10,
                     identifier: "stack-max-count-stepper",
                     valueIdentifier: "stack-max-count-value"
                 )

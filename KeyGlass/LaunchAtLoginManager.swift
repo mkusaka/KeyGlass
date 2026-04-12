@@ -12,35 +12,35 @@ enum LaunchAtLoginState: Equatable {
     var isEnabled: Bool {
         switch self {
         case .enabled, .requiresApproval:
-            return true
+            true
         case .unavailable, .disabled, .notFound:
-            return false
+            false
         }
     }
 
     var description: String {
         switch self {
         case .unavailable:
-            return "Unavailable"
+            "Unavailable"
         case .disabled:
-            return "Off"
+            "Off"
         case .enabled:
-            return "On"
+            "On"
         case .requiresApproval:
-            return "Needs approval in Login Items"
+            "Needs approval in Login Items"
         case .notFound:
-            return "Login item not found"
+            "Login item not found"
         }
     }
 
     var hint: String? {
         switch self {
         case .requiresApproval:
-            return "Approve KeyGlass in System Settings > General > Login Items to finish enabling start at login."
+            "Approve KeyGlass in System Settings > General > Login Items to finish enabling start at login."
         case .notFound:
-            return "The app could not find its login item registration. Reinstalling or rebuilding the app may be required."
+            "The app could not find its login item registration. Reinstalling or rebuilding the app may be required."
         case .unavailable, .disabled, .enabled:
-            return nil
+            nil
         }
     }
 }
@@ -58,7 +58,7 @@ final class StubLaunchAtLoginManager: LaunchAtLoginManaging {
     var nextError: Error?
 
     init(initialState: LaunchAtLoginState = .disabled) {
-        self.currentValue = initialState
+        currentValue = initialState
     }
 
     func currentState() -> LaunchAtLoginState {

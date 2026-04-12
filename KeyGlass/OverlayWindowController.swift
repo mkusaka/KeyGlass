@@ -24,13 +24,13 @@ struct OverlayPresentationSettings {
 
     @MainActor
     init(from settingsStore: SettingsStore) {
-        self.overlayAnchor = settingsStore.overlayAnchor
-        self.overlayOpacity = settingsStore.overlayOpacity
-        self.overlayFontSize = settingsStore.overlayFontSize
-        self.fadeDelay = settingsStore.fadeDelay
-        self.fadeDuration = settingsStore.fadeDuration
-        self.stackDirection = settingsStore.overlayStackDirection
-        self.customOrigin = settingsStore.customOverlayOrigin
+        overlayAnchor = settingsStore.overlayAnchor
+        overlayOpacity = settingsStore.overlayOpacity
+        overlayFontSize = settingsStore.overlayFontSize
+        fadeDelay = settingsStore.fadeDelay
+        fadeDuration = settingsStore.fadeDuration
+        stackDirection = settingsStore.overlayStackDirection
+        customOrigin = settingsStore.customOverlayOrigin
     }
 }
 
@@ -51,32 +51,32 @@ enum OverlayPlacementCalculator {
     static func origin(for anchor: OverlayAnchor, size: CGSize, visibleFrame: CGRect) -> CGPoint {
         switch anchor {
         case .topCenter:
-            return CGPoint(
+            CGPoint(
                 x: visibleFrame.midX - size.width / 2,
                 y: visibleFrame.maxY - size.height - 24
             )
         case .bottomCenter:
-            return CGPoint(
+            CGPoint(
                 x: visibleFrame.midX - size.width / 2,
                 y: visibleFrame.minY + 24
             )
         case .topLeft:
-            return CGPoint(
+            CGPoint(
                 x: visibleFrame.minX + 24,
                 y: visibleFrame.maxY - size.height - 24
             )
         case .topRight:
-            return CGPoint(
+            CGPoint(
                 x: visibleFrame.maxX - size.width - 24,
                 y: visibleFrame.maxY - size.height - 24
             )
         case .bottomLeft:
-            return CGPoint(
+            CGPoint(
                 x: visibleFrame.minX + 24,
                 y: visibleFrame.minY + 24
             )
         case .bottomRight:
-            return CGPoint(
+            CGPoint(
                 x: visibleFrame.maxX - size.width - 24,
                 y: visibleFrame.minY + 24
             )
@@ -153,14 +153,14 @@ final class OverlayWindowController: OverlayPresenting {
     private func orderedEntries(from entries: [OverlayHistoryEntry], direction: OverlayStackDirection) -> [OverlayHistoryEntry] {
         switch direction {
         case .newestOnTop:
-            return entries
+            entries
         case .newestOnBottom:
-            return entries.reversed()
+            entries.reversed()
         }
     }
 
     private func clearEntries() {
-        entryViews.forEach { entryView in
+        for entryView in entryViews {
             entryView.removeFromSuperview()
         }
         entryViews.removeAll()
@@ -196,7 +196,7 @@ final class OverlayWindowController: OverlayPresenting {
             object: panel
         )
 
-        self.window = panel
+        window = panel
         return panel
     }
 
@@ -239,7 +239,7 @@ final class OverlayWindowController: OverlayPresenting {
     private func handleDraggingStateChange(_ isDragging: Bool) {
         isDraggingWindow = isDragging
 
-        entryViews.forEach { entryView in
+        for entryView in entryViews {
             entryView.setPaused(isDragging)
         }
 

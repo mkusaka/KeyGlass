@@ -96,7 +96,7 @@ final class SystemKeyTranslator: KeyTranslating {
 struct StubKeyTranslator: KeyTranslating {
     let values: [UInt16: String]
 
-    func string(for keyCode: UInt16, modifierFlags: NSEvent.ModifierFlags) -> String? {
+    func string(for keyCode: UInt16, modifierFlags _: NSEvent.ModifierFlags) -> String? {
         values[keyCode]
     }
 }

@@ -1,6 +1,6 @@
 import AppKit
-import XCTest
 @testable import KeyGlass
+import XCTest
 
 @MainActor
 final class KeystrokeFormatterTests: XCTestCase {

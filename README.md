@@ -26,9 +26,20 @@ KeyGlass is a Swift-native macOS menu bar utility that reimplements the practica
 - `SettingsStore`
 - `SystemInputPermissionManager`
 - `SystemEventTapService`
+- `SystemLaunchAtLoginManager`
 - `KeystrokeFormatter`
 - `OverlayWindowController`
 - `SettingsWindowController`
+
+## Tooling
+
+This repository uses `mise` to pin the CLI tools used for linting and formatting.
+
+```bash
+brew install mise
+mise trust
+mise install
+```
 
 ## Development
 
@@ -42,6 +53,19 @@ Test:
 
 ```bash
 xcodebuild test -scheme KeyGlass -project KeyGlass.xcodeproj -destination 'platform=macOS' -skip-testing:KeyGlassUITests
+```
+
+Format:
+
+```bash
+mise exec -- swiftformat .
+```
+
+Lint:
+
+```bash
+mise exec -- swiftformat --lint .
+mise exec -- swiftlint lint --quiet
 ```
 
 UI test attempt:

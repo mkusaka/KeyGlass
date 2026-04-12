@@ -1,6 +1,6 @@
 import AppKit
-import XCTest
 @testable import KeyGlass
+import XCTest
 
 @MainActor
 final class KeyGlassHostedUITests: XCTestCase {
@@ -541,7 +541,7 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertEqual(overlayPresenter.lastEntries.map(\.text), ["f", "d"])
     }
 
-    func testDragPausesOverlayExpiryUntilDropFinishes() throws {
+    func testDragPausesOverlayExpiryUntilDropFinishes() {
         let settingsStore = SettingsStore(defaults: defaults)
         settingsStore.fadeDelay = 0.2
         settingsStore.fadeDuration = 0.1

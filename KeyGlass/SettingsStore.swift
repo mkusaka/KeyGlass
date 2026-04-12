@@ -13,11 +13,11 @@ enum DisplayMode: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .modifierOnly:
-            return "Modifier Only"
+            "Modifier Only"
         case .modifiedKeys:
-            return "Modified Keys"
+            "Modified Keys"
         case .allKeys:
-            return "All Keys"
+            "All Keys"
         }
     }
 }
@@ -33,9 +33,9 @@ enum OverlayStackDirection: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .newestOnTop:
-            return "Newest On Top"
+            "Newest On Top"
         case .newestOnBottom:
-            return "Newest On Bottom"
+            "Newest On Bottom"
         }
     }
 }
@@ -55,17 +55,17 @@ enum OverlayAnchor: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .topCenter:
-            return "Top Center"
+            "Top Center"
         case .bottomCenter:
-            return "Bottom Center"
+            "Bottom Center"
         case .topLeft:
-            return "Top Left"
+            "Top Left"
         case .topRight:
-            return "Top Right"
+            "Top Right"
         case .bottomLeft:
-            return "Bottom Left"
+            "Bottom Left"
         case .bottomRight:
-            return "Bottom Right"
+            "Bottom Right"
         }
     }
 }
@@ -133,19 +133,19 @@ final class SettingsStore: ObservableObject {
 
     init(defaults: UserDefaults) {
         self.defaults = defaults
-        self.captureEnabled = defaults.object(forKey: Keys.captureEnabled) as? Bool ?? false
-        self.overlayAnchor = OverlayAnchor(rawValue: defaults.string(forKey: Keys.overlayAnchor) ?? "") ?? .topCenter
-        self.overlayOpacity = defaults.object(forKey: Keys.overlayOpacity) as? Double ?? 0.94
-        self.overlayFontSize = defaults.object(forKey: Keys.overlayFontSize) as? Double ?? 22
-        self.fadeDelay = defaults.object(forKey: Keys.fadeDelay) as? Double ?? 1.2
-        self.fadeDuration = defaults.object(forKey: Keys.fadeDuration) as? Double ?? 0.22
-        self.overlayMergeWindow = defaults.object(forKey: Keys.overlayMergeWindow) as? Double ?? 0.6
-        self.overlayStackMaxCount = defaults.object(forKey: Keys.overlayStackMaxCount) as? Int ?? 5
-        self.overlayStackDirection = OverlayStackDirection(rawValue: defaults.string(forKey: Keys.overlayStackDirection) ?? "") ?? .newestOnTop
-        self.displayMode = DisplayMode(rawValue: defaults.string(forKey: Keys.displayMode) ?? "") ?? .allKeys
-        self.showMouseClicks = defaults.object(forKey: Keys.showMouseClicks) as? Bool ?? false
-        self.hasPromptedForInputMonitoring = defaults.object(forKey: Keys.hasPromptedForInputMonitoring) as? Bool ?? false
-        self.customOverlayOrigin = Self.loadCustomOverlayOrigin(defaults: defaults)
+        captureEnabled = defaults.object(forKey: Keys.captureEnabled) as? Bool ?? false
+        overlayAnchor = OverlayAnchor(rawValue: defaults.string(forKey: Keys.overlayAnchor) ?? "") ?? .topCenter
+        overlayOpacity = defaults.object(forKey: Keys.overlayOpacity) as? Double ?? 0.94
+        overlayFontSize = defaults.object(forKey: Keys.overlayFontSize) as? Double ?? 22
+        fadeDelay = defaults.object(forKey: Keys.fadeDelay) as? Double ?? 1.2
+        fadeDuration = defaults.object(forKey: Keys.fadeDuration) as? Double ?? 0.22
+        overlayMergeWindow = defaults.object(forKey: Keys.overlayMergeWindow) as? Double ?? 0.6
+        overlayStackMaxCount = defaults.object(forKey: Keys.overlayStackMaxCount) as? Int ?? 5
+        overlayStackDirection = OverlayStackDirection(rawValue: defaults.string(forKey: Keys.overlayStackDirection) ?? "") ?? .newestOnTop
+        displayMode = DisplayMode(rawValue: defaults.string(forKey: Keys.displayMode) ?? "") ?? .allKeys
+        showMouseClicks = defaults.object(forKey: Keys.showMouseClicks) as? Bool ?? false
+        hasPromptedForInputMonitoring = defaults.object(forKey: Keys.hasPromptedForInputMonitoring) as? Bool ?? false
+        customOverlayOrigin = Self.loadCustomOverlayOrigin(defaults: defaults)
     }
 
     private enum Keys {
