@@ -231,7 +231,7 @@ final class ScriptedEventTapService: EventTapServicing {
             .enumerated()
             .compactMap { index, entry in
                 let parts = entry.split(separator: ":", omittingEmptySubsequences: false)
-                guard (parts.count == 3 || parts.count == 4),
+                guard parts.count == 3 || parts.count == 4,
                       let kind = CapturedInputKind(scriptToken: String(parts[0])),
                       let keyCode = UInt16(parts[1])
                 else {

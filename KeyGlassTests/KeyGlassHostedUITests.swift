@@ -436,7 +436,7 @@ final class KeyGlassHostedUITests: XCTestCase {
 
     func testOffscreenCustomOverlayOriginIsClampedBackIntoVisibleFrame() throws {
         let settingsStore = SettingsStore(defaults: defaults)
-        settingsStore.customOverlayOrigin = CGPoint(x: -10_000, y: 10_000)
+        settingsStore.customOverlayOrigin = CGPoint(x: -10000, y: 10000)
         let overlayWindowController = OverlayWindowController()
         let coordinator = AppCoordinator(
             launchConfiguration: LaunchConfiguration(
