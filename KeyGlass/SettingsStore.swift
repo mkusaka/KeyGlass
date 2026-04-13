@@ -134,14 +134,14 @@ final class SettingsStore: ObservableObject {
     init(defaults: UserDefaults) {
         self.defaults = defaults
         captureEnabled = defaults.object(forKey: Keys.captureEnabled) as? Bool ?? false
-        overlayAnchor = OverlayAnchor(rawValue: defaults.string(forKey: Keys.overlayAnchor) ?? "") ?? .topCenter
+        overlayAnchor = OverlayAnchor(rawValue: defaults.string(forKey: Keys.overlayAnchor) ?? "") ?? .bottomCenter
         overlayOpacity = defaults.object(forKey: Keys.overlayOpacity) as? Double ?? 0.94
         overlayFontSize = defaults.object(forKey: Keys.overlayFontSize) as? Double ?? 22
         fadeDelay = defaults.object(forKey: Keys.fadeDelay) as? Double ?? 1.2
         fadeDuration = defaults.object(forKey: Keys.fadeDuration) as? Double ?? 0.22
         overlayMergeWindow = defaults.object(forKey: Keys.overlayMergeWindow) as? Double ?? 0.6
         overlayStackMaxCount = defaults.object(forKey: Keys.overlayStackMaxCount) as? Int ?? 5
-        overlayStackDirection = OverlayStackDirection(rawValue: defaults.string(forKey: Keys.overlayStackDirection) ?? "") ?? .newestOnTop
+        overlayStackDirection = OverlayStackDirection(rawValue: defaults.string(forKey: Keys.overlayStackDirection) ?? "") ?? .newestOnBottom
         displayMode = DisplayMode(rawValue: defaults.string(forKey: Keys.displayMode) ?? "") ?? .allKeys
         showMouseClicks = defaults.object(forKey: Keys.showMouseClicks) as? Bool ?? false
         hasPromptedForInputMonitoring = defaults.object(forKey: Keys.hasPromptedForInputMonitoring) as? Bool ?? false

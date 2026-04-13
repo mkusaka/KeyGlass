@@ -293,6 +293,13 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertEqual(settingsStore.displayMode, .allKeys)
     }
 
+    func testDefaultOverlayLayoutPrefersBottomAnchoredUpwardStacking() {
+        let settingsStore = SettingsStore(defaults: defaults)
+
+        XCTAssertEqual(settingsStore.overlayAnchor, .bottomCenter)
+        XCTAssertEqual(settingsStore.overlayStackDirection, .newestOnBottom)
+    }
+
     func testOverlaySettingsFlowIntoPresenter() throws {
         let overlayPresenter = RecordingOverlayPresenter()
         let settingsStore = SettingsStore(defaults: defaults)
@@ -652,7 +659,7 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertEqual(overlayWindowController.testingDisplayedTexts, ["⌘K"], "Overlay should not update during drag")
 
         overlayWindowController.onDraggingStateChange?(false)
-        XCTAssertEqual(overlayWindowController.testingDisplayedTexts, ["⇧⇥", "⌘K"], "Overlay should reflect all entries after drag ends")
+        XCTAssertEqual(overlayWindowController.testingDisplayedTexts, ["⌘K", "⇧⇥"], "Overlay should reflect all entries after drag ends")
     }
 
     func testDragPreservesEntryAlphaMidFade() {
