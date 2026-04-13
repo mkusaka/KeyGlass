@@ -110,6 +110,14 @@ final class AppCoordinator: NSObject, ObservableObject {
         statusItem?.menu?.items ?? []
     }
 
+    var testingStatusButtonHasImage: Bool {
+        statusItem?.button?.image != nil
+    }
+
+    var testingStatusButtonTitle: String {
+        statusItem?.button?.title ?? ""
+    }
+
     var testingCanCheckForUpdates: Bool {
         updaterController.canCheckForUpdates
     }
@@ -295,10 +303,21 @@ final class AppCoordinator: NSObject, ObservableObject {
         guard statusItem == nil else { return }
 
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.title = "⌨︎"
+        statusItem.button?.image = statusItemImage()
+        statusItem.button?.imageScaling = .scaleProportionallyDown
+        statusItem.button?.title = ""
         statusItem.button?.toolTip = "KeyGlass"
         self.statusItem = statusItem
         rebuildStatusMenu()
+    }
+
+    private func statusItemImage() -> NSImage {
+        let image = (NSApp.applicationIconImage.copy() as? NSImage)
+            ?? NSImage(named: NSImage.applicationIconName)
+            ?? NSImage()
+        image.size = NSSize(width: 18, height: 18)
+        image.isTemplate = false
+        return image
     }
 
     private func refreshPermissionState() {
@@ -579,10 +598,7 @@ final class AppCoordinator: NSObject, ObservableObject {
         menu.addItem(quitItem)
 
         statusItem.menu = menu
-        statusItem.button?.image = NSImage(
-            systemSymbolName: settingsStore.captureEnabled ? "keyboard.fill" : "keyboard",
-            accessibilityDescription: "KeyGlass"
-        )
+        statusItem.button?.image = statusItemImage()
         statusItem.button?.title = ""
     }
 

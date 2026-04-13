@@ -100,6 +100,8 @@ final class KeyGlassHostedUITests: XCTestCase {
 
         coordinator.applicationDidFinishLaunching()
 
+        XCTAssertTrue(coordinator.testingStatusButtonHasImage)
+        XCTAssertEqual(coordinator.testingStatusButtonTitle, "")
         XCTAssertTrue(coordinator.testingStatusMenuItems.contains { item in
             item.title == "Enable Capture" && item.state == .off
         })
@@ -109,6 +111,8 @@ final class KeyGlassHostedUITests: XCTestCase {
 
         coordinator.toggleCaptureEnabled(true)
 
+        XCTAssertTrue(coordinator.testingStatusButtonHasImage)
+        XCTAssertEqual(coordinator.testingStatusButtonTitle, "")
         XCTAssertTrue(coordinator.testingStatusMenuItems.contains { item in
             item.title == "Enable Capture" && item.state == .on
         })
