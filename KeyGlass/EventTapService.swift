@@ -188,7 +188,7 @@ final class SystemEventTapService: EventTapServicing {
 final class ScriptedEventTapService: EventTapServicing {
     private(set) var isRunning = false
 
-    private let script: [CapturedInput]
+    private let script: [ScheduledCapturedInput]
     private var handler: ((CapturedInput) -> Void)?
     private var pendingWorkItems: [DispatchWorkItem] = []
 
@@ -203,15 +203,14 @@ final class ScriptedEventTapService: EventTapServicing {
         self.handler = handler
         pendingWorkItems.removeAll()
 
-        for (index, input) in script.enumerated() {
+        for scheduledInput in script {
             let workItem = DispatchWorkItem { [weak self] in
                 guard let self, isRunning else { return }
-                self.handler?(input)
+                self.handler?(scheduledInput.input)
             }
 
             pendingWorkItems.append(workItem)
-            let delay = 0.12 + (Double(index) * 0.2)
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+            DispatchQueue.main.asyncAfter(deadline: .now() + scheduledInput.delay, execute: workItem)
         }
     }
 
@@ -222,29 +221,42 @@ final class ScriptedEventTapService: EventTapServicing {
         isRunning = false
     }
 
-    private static func parse(script: String?) -> [CapturedInput] {
+    private static func parse(script: String?) -> [ScheduledCapturedInput] {
         guard let script, !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return []
         }
 
         return script
             .split(separator: ";")
-            .compactMap { entry in
+            .enumerated()
+            .compactMap { index, entry in
                 let parts = entry.split(separator: ":", omittingEmptySubsequences: false)
-                guard parts.count == 3,
+                guard (parts.count == 3 || parts.count == 4),
                       let kind = CapturedInputKind(scriptToken: String(parts[0])),
                       let keyCode = UInt16(parts[1])
                 else {
                     return nil
                 }
 
-                return CapturedInput(
-                    kind: kind,
-                    keyCode: keyCode,
-                    modifierFlags: NSEvent.ModifierFlags(scriptToken: String(parts[2]))
+                let delay = parts.count == 4
+                    ? (Double(parts[3]) ?? 0)
+                    : 0.12 + (Double(index) * 0.2)
+
+                return ScheduledCapturedInput(
+                    input: CapturedInput(
+                        kind: kind,
+                        keyCode: keyCode,
+                        modifierFlags: NSEvent.ModifierFlags(scriptToken: String(parts[2]))
+                    ),
+                    delay: delay
                 )
             }
     }
+}
+
+private struct ScheduledCapturedInput {
+    let input: CapturedInput
+    let delay: TimeInterval
 }
 
 private extension CapturedInputKind {

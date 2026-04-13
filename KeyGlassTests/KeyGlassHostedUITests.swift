@@ -570,14 +570,16 @@ final class KeyGlassHostedUITests: XCTestCase {
             ),
             settingsStore: settingsStore,
             permissionManager: StubInputPermissionManager(state: .granted),
-            eventTapService: ScriptedEventTapService(script: "keyDown:0:none;keyDown:1:none;keyDown:2:none;keyDown:3:none"),
+            eventTapService: ScriptedEventTapService(
+                script: "keyDown:0:none:0.12;keyDown:1:none:1.12;keyDown:2:none:2.12;keyDown:3:none:3.12"
+            ),
             launchAtLoginManager: StubLaunchAtLoginManager(),
             formatter: KeystrokeFormatter(),
             overlayWindowController: overlayPresenter
         )
 
         coordinator.toggleCaptureEnabled(true)
-        waitUntil(timeout: 2.0) {
+        waitUntil(timeout: 6.0) {
             overlayPresenter.lastEntries.map(\.text) == ["f", "d"]
         }
 
