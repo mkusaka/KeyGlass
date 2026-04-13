@@ -20,17 +20,16 @@ let iconSizes: [(Int, Int)] = [
 func drawIcon(in context: CGContext, size: CGFloat) {
     let bounds = CGRect(x: 0, y: 0, width: size, height: size)
 
-    // --- Background: macOS Big Sur rounded rect ---
+    // --- Background: macOS rounded rect ---
     let inset = size * 0.02
     let bgRect = bounds.insetBy(dx: inset, dy: inset)
     let cornerRadius = size * 0.22
     let bgPath = CGPath(roundedRect: bgRect, cornerWidth: cornerRadius, cornerHeight: cornerRadius, transform: nil)
 
-    // Dark blue-grey gradient (reminiscent of dark glass)
     let colorSpace = CGColorSpaceCreateDeviceRGB()
     let gradientColors = [
-        CGColor(red: 0.15, green: 0.18, blue: 0.25, alpha: 1.0),
-        CGColor(red: 0.22, green: 0.28, blue: 0.38, alpha: 1.0),
+        CGColor(red: 0.11, green: 0.13, blue: 0.17, alpha: 1.0),
+        CGColor(red: 0.20, green: 0.24, blue: 0.31, alpha: 1.0),
     ] as CFArray
     let gradientLocations: [CGFloat] = [0.0, 1.0]
     let gradient = CGGradient(colorsSpace: colorSpace, colors: gradientColors, locations: gradientLocations)!
@@ -46,7 +45,6 @@ func drawIcon(in context: CGContext, size: CGFloat) {
     )
     context.restoreGState()
 
-    // Subtle border
     context.saveGState()
     context.addPath(bgPath)
     context.setStrokeColor(CGColor(red: 1, green: 1, blue: 1, alpha: 0.10))
@@ -54,13 +52,13 @@ func drawIcon(in context: CGContext, size: CGFloat) {
     context.strokePath()
     context.restoreGState()
 
-    // --- Glass reflection arc (top-left shine) ---
+    // Subtle glass reflection near the top edge.
     context.saveGState()
     context.addPath(bgPath)
     context.clip()
 
     let shineGradientColors = [
-        CGColor(red: 1, green: 1, blue: 1, alpha: 0.12),
+        CGColor(red: 1, green: 1, blue: 1, alpha: 0.10),
         CGColor(red: 1, green: 1, blue: 1, alpha: 0.0),
     ] as CFArray
     let shineLocations: [CGFloat] = [0.0, 1.0]
@@ -76,56 +74,31 @@ func drawIcon(in context: CGContext, size: CGFloat) {
     )
     context.restoreGState()
 
-    // --- Keycap grid (3x3 arrangement, center row visible) ---
-    let keySize = size * 0.17
-    let keyGap = size * 0.04
-    let keyCorner = size * 0.035
-    let gridStartX = size * 0.18
-    let gridStartY = size * 0.18
-
-    // Draw 3 rows x 3 cols of keycaps
-    for row in 0 ..< 3 {
-        for col in 0 ..< 3 {
-            let x = gridStartX + CGFloat(col) * (keySize + keyGap)
-            let y = gridStartY + CGFloat(row) * (keySize + keyGap)
-            let keyRect = CGRect(x: x, y: y, width: keySize, height: keySize)
-
-            // Skip center key (will be drawn as the featured key)
-            if row == 1, col == 1 { continue }
-
-            drawKeycap(
-                in: context,
-                rect: keyRect,
-                cornerRadius: keyCorner,
-                alpha: 0.35,
-                size: size,
-                label: nil
-            )
-        }
-    }
-
-    // --- Featured center keycap with ⌘ symbol ---
-    let centerX = gridStartX + 1 * (keySize + keyGap)
-    let centerY = gridStartY + 1 * (keySize + keyGap)
-    let featuredSize = keySize * 1.1
-    let featuredOffset = (featuredSize - keySize) / 2
-    let featuredRect = CGRect(
-        x: centerX - featuredOffset,
-        y: centerY - featuredOffset,
-        width: featuredSize,
-        height: featuredSize
+    // A single, prominent keycap reads more like an actual keyboard key.
+    let bodyRect = CGRect(
+        x: size * 0.20,
+        y: size * 0.20,
+        width: size * 0.60,
+        height: size * 0.44
+    )
+    let topRect = CGRect(
+        x: size * 0.23,
+        y: size * 0.30,
+        width: size * 0.54,
+        height: size * 0.40
     )
 
     drawKeycap(
         in: context,
-        rect: featuredRect,
-        cornerRadius: keyCorner * 1.2,
-        alpha: 0.85,
+        bodyRect: bodyRect,
+        topRect: topRect,
+        bodyCornerRadius: size * 0.11,
+        topCornerRadius: size * 0.10,
         size: size,
         label: "\u{2318}"
     )
 
-    // --- Glass overlay effect (diagonal light streak) ---
+    // Diagonal glass streak to keep the original "glass" character.
     context.saveGState()
     context.addPath(bgPath)
     context.clip()
@@ -146,97 +119,175 @@ func drawIcon(in context: CGContext, size: CGFloat) {
 
 func drawKeycap(
     in context: CGContext,
-    rect: CGRect,
-    cornerRadius: CGFloat,
-    alpha: CGFloat,
+    bodyRect: CGRect,
+    topRect: CGRect,
+    bodyCornerRadius: CGFloat,
+    topCornerRadius: CGFloat,
     size: CGFloat,
     label: String?
 ) {
-    let keyPath = CGPath(roundedRect: rect, cornerWidth: cornerRadius, cornerHeight: cornerRadius, transform: nil)
+    let colorSpace = CGColorSpaceCreateDeviceRGB()
+    let bodyPath = CGPath(
+        roundedRect: bodyRect,
+        cornerWidth: bodyCornerRadius,
+        cornerHeight: bodyCornerRadius,
+        transform: nil
+    )
+    let topPath = CGPath(
+        roundedRect: topRect,
+        cornerWidth: topCornerRadius,
+        cornerHeight: topCornerRadius,
+        transform: nil
+    )
 
-    // Keycap shadow
+    // Broad shadow anchors the key on the glass background.
     context.saveGState()
     context.setShadow(
-        offset: CGSize(width: 0, height: -size * 0.008),
-        blur: size * 0.02,
-        color: CGColor(red: 0, green: 0, blue: 0, alpha: 0.4 * Double(alpha))
+        offset: CGSize(width: 0, height: size * 0.035),
+        blur: size * 0.075,
+        color: CGColor(red: 0, green: 0, blue: 0, alpha: 0.40)
     )
-    context.addPath(keyPath)
-    context.setFillColor(CGColor(red: 0.85, green: 0.88, blue: 0.92, alpha: Double(alpha)))
+    context.addPath(bodyPath)
+    context.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 0.18))
     context.fillPath()
     context.restoreGState()
 
-    // Keycap body (glass-like translucent)
-    let colorSpace = CGColorSpaceCreateDeviceRGB()
-    let keyGradientColors = [
-        CGColor(red: 0.92, green: 0.94, blue: 0.97, alpha: Double(alpha)),
-        CGColor(red: 0.78, green: 0.82, blue: 0.88, alpha: Double(alpha)),
+    // Keycap skirt.
+    let bodyGradientColors = [
+        CGColor(red: 0.73, green: 0.77, blue: 0.83, alpha: 1.0),
+        CGColor(red: 0.43, green: 0.48, blue: 0.56, alpha: 1.0),
     ] as CFArray
-    let keyGradient = CGGradient(
+    let bodyGradient = CGGradient(
         colorsSpace: colorSpace,
-        colors: keyGradientColors,
+        colors: bodyGradientColors,
         locations: [0.0, 1.0]
     )!
 
     context.saveGState()
-    context.addPath(keyPath)
+    context.addPath(bodyPath)
     context.clip()
     context.drawLinearGradient(
-        keyGradient,
-        start: CGPoint(x: rect.midX, y: rect.maxY),
-        end: CGPoint(x: rect.midX, y: rect.minY),
+        bodyGradient,
+        start: CGPoint(x: bodyRect.midX, y: bodyRect.maxY),
+        end: CGPoint(x: bodyRect.midX, y: bodyRect.minY),
         options: []
     )
     context.restoreGState()
 
-    // Keycap top highlight
-    let highlightRect = CGRect(
-        x: rect.minX + rect.width * 0.1,
-        y: rect.midY,
-        width: rect.width * 0.8,
-        height: rect.height * 0.42
-    )
-    let highlightPath = CGPath(
-        roundedRect: highlightRect,
-        cornerWidth: cornerRadius * 0.6,
-        cornerHeight: cornerRadius * 0.6,
-        transform: nil
-    )
     context.saveGState()
-    context.addPath(keyPath)
-    context.clip()
-    context.addPath(highlightPath)
-    context.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 0.25 * Double(alpha)))
-    context.fillPath()
-    context.restoreGState()
-
-    // Keycap border
-    context.saveGState()
-    context.addPath(keyPath)
-    context.setStrokeColor(CGColor(red: 1, green: 1, blue: 1, alpha: 0.15 * Double(alpha)))
+    context.addPath(bodyPath)
+    context.setStrokeColor(CGColor(red: 1, green: 1, blue: 1, alpha: 0.10))
     context.setLineWidth(size * 0.004)
     context.strokePath()
     context.restoreGState()
 
-    // Label (⌘ symbol)
+    // Shadow tucked under the top plate to emphasize the key profile.
+    let underTopGradient = CGGradient(
+        colorsSpace: colorSpace,
+        colors: [
+            CGColor(red: 0, green: 0, blue: 0, alpha: 0.16),
+            CGColor(red: 0, green: 0, blue: 0, alpha: 0.0),
+        ] as CFArray,
+        locations: [0.0, 1.0]
+    )!
+    context.saveGState()
+    context.addPath(bodyPath)
+    context.clip()
+    context.drawLinearGradient(
+        underTopGradient,
+        start: CGPoint(x: topRect.midX, y: topRect.minY),
+        end: CGPoint(x: topRect.midX, y: bodyRect.minY),
+        options: []
+    )
+    context.restoreGState()
+
+    // Keycap top surface.
+    let topGradient = CGGradient(
+        colorsSpace: colorSpace,
+        colors: [
+            CGColor(red: 0.99, green: 0.99, blue: 1.0, alpha: 1.0),
+            CGColor(red: 0.88, green: 0.90, blue: 0.94, alpha: 1.0),
+        ] as CFArray,
+        locations: [0.0, 1.0]
+    )!
+    context.saveGState()
+    context.addPath(topPath)
+    context.clip()
+    context.drawLinearGradient(
+        topGradient,
+        start: CGPoint(x: topRect.midX, y: topRect.maxY),
+        end: CGPoint(x: topRect.midX, y: topRect.minY),
+        options: []
+    )
+    context.restoreGState()
+
+    // Top specular highlight.
+    let highlightRect = CGRect(
+        x: topRect.minX + topRect.width * 0.08,
+        y: topRect.midY + topRect.height * 0.08,
+        width: topRect.width * 0.84,
+        height: topRect.height * 0.30
+    )
+    let highlightPath = CGPath(
+        roundedRect: highlightRect,
+        cornerWidth: topCornerRadius * 0.55,
+        cornerHeight: topCornerRadius * 0.55,
+        transform: nil
+    )
+    context.saveGState()
+    context.addPath(topPath)
+    context.clip()
+    context.addPath(highlightPath)
+    context.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 0.34))
+    context.fillPath()
+    context.restoreGState()
+
+    // Inner bottom shade makes the key surface feel concave enough to read as a cap.
+    let innerShade = CGGradient(
+        colorsSpace: colorSpace,
+        colors: [
+            CGColor(red: 0, green: 0, blue: 0, alpha: 0.0),
+            CGColor(red: 0, green: 0, blue: 0, alpha: 0.08),
+        ] as CFArray,
+        locations: [0.55, 1.0]
+    )!
+    context.saveGState()
+    context.addPath(topPath)
+    context.clip()
+    context.drawLinearGradient(
+        innerShade,
+        start: CGPoint(x: topRect.midX, y: topRect.maxY),
+        end: CGPoint(x: topRect.midX, y: topRect.minY),
+        options: []
+    )
+    context.restoreGState()
+
+    context.saveGState()
+    context.addPath(topPath)
+    context.setStrokeColor(CGColor(red: 1, green: 1, blue: 1, alpha: 0.32))
+    context.setLineWidth(size * 0.004)
+    context.strokePath()
+    context.restoreGState()
+
+    // Legend.
     if let label, size >= 64 {
-        let fontSize = rect.height * 0.48
+        let fontSize = topRect.height * 0.36
         let font = CTFontCreateWithName("Helvetica Neue" as CFString, fontSize, nil)
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: NSColor(
-                red: 0.15,
-                green: 0.18,
-                blue: 0.25,
-                alpha: Double(alpha)
+                red: 0.21,
+                green: 0.24,
+                blue: 0.29,
+                alpha: 0.92
             ),
         ]
         let attrString = NSAttributedString(string: label, attributes: attributes)
         let line = CTLineCreateWithAttributedString(attrString)
         let lineBounds = CTLineGetBoundsWithOptions(line, .useOpticalBounds)
 
-        let textX = rect.midX - lineBounds.width / 2 - lineBounds.origin.x
-        let textY = rect.midY - lineBounds.height / 2 - lineBounds.origin.y
+        let textX = topRect.midX - lineBounds.width / 2 - lineBounds.origin.x
+        let textY = topRect.midY - lineBounds.height / 2 - lineBounds.origin.y - topRect.height * 0.01
 
         context.saveGState()
         context.textPosition = CGPoint(x: textX, y: textY)
