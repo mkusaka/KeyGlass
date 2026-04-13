@@ -88,15 +88,30 @@ Manual `workflow_dispatch` runs validate archive, export, signing, notarization,
 ### How To Cut A Release
 
 1. Merge the release target changes into `main` and confirm the `Test` workflow is green.
-2. Create and push a semantic version tag such as `v0.0.5`.
+2. Create and push a semantic version tag.
 
 ```bash
-git tag v0.0.5
-git push origin v0.0.5
+VERSION=0.0.8
+git tag "v${VERSION}"
+git push origin "v${VERSION}"
 ```
 
-3. Wait for the `Release` workflow triggered by the tag push to finish.
-4. Verify that the workflow produced all downstream artifacts:
+3. Watch the `Release` workflow triggered by the tag push.
+
+```bash
+gh run list --workflow Release --limit 5
+gh run watch
+```
+
+4. Verify that the workflow produced all downstream artifacts.
+
+```bash
+gh release view "v${VERSION}"
+curl -fsSL https://mkusaka.github.io/KeyGlass/appcast.xml | rg "<sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>"
+```
+
+Expected results:
+
 - a signed `KeyGlass.zip` attached to the GitHub Release
 - a cask update dispatch to `mkusaka/homebrew-tap`
 - an updated `appcast.xml` on the `gh-pages` branch
@@ -107,10 +122,18 @@ The workflow derives the release version from the tag name, so repository files 
 
 Use `workflow_dispatch` on the `Release` workflow when you want to validate signing, notarization, and export without publishing a GitHub Release or updating Homebrew / Sparkle delivery.
 
-Enter the version you want to test, for example `0.0.5`. The workflow will:
+Dispatch it with a version input, for example:
+
+```bash
+gh workflow run Release --field version=0.0.8
+gh run list --workflow Release --limit 5
+gh run watch
+```
+
+The workflow will:
 
 - set `CFBundleShortVersionString` from that version
-- derive `CFBundleVersion` as `major * 10000 + minor * 100 + patch` (for `0.0.5`, build version is `5`)
+- derive `CFBundleVersion` as `major * 10000 + minor * 100 + patch` (for `0.0.8`, build version is `8`)
 - build, sign, notarize, and export the app
 - skip GitHub Release creation, Homebrew dispatch, and `gh-pages` appcast deployment
 
