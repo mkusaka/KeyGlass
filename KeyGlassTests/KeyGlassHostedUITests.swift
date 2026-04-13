@@ -434,6 +434,37 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertEqual(settingsStore.customOverlayOrigin, newOrigin)
     }
 
+    func testOffscreenCustomOverlayOriginIsClampedBackIntoVisibleFrame() throws {
+        let settingsStore = SettingsStore(defaults: defaults)
+        settingsStore.customOverlayOrigin = CGPoint(x: -10_000, y: 10_000)
+        let overlayWindowController = OverlayWindowController()
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: StubInputPermissionManager(state: .granted),
+            eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: overlayWindowController
+        )
+
+        coordinator.previewCommandK()
+
+        let window = try XCTUnwrap(overlayWindowController.testingWindow)
+        let visibleFrame = try XCTUnwrap(window.screen ?? NSScreen.screens.first).visibleFrame
+
+        XCTAssertGreaterThanOrEqual(window.frame.minX, visibleFrame.minX - 0.001)
+        XCTAssertLessThanOrEqual(window.frame.maxX, visibleFrame.maxX + 0.001)
+        XCTAssertGreaterThanOrEqual(window.frame.minY, visibleFrame.minY - 0.001)
+        XCTAssertLessThanOrEqual(window.frame.maxY, visibleFrame.maxY + 0.001)
+        XCTAssertEqual(settingsStore.customOverlayOrigin, window.frame.origin)
+    }
+
     func testMousePreviewRequiresSettingAndPersistsWhenEnabled() {
         let overlayPresenter = RecordingOverlayPresenter()
         let settingsStore = SettingsStore(defaults: defaults)
@@ -495,6 +526,8 @@ final class KeyGlassHostedUITests: XCTestCase {
     func testSmallMergeWindowSplitsRapidInputIntoStackEntries() {
         let settingsStore = SettingsStore(defaults: defaults)
         settingsStore.overlayMergeWindow = 0.01
+        settingsStore.fadeDelay = 10
+        settingsStore.fadeDuration = 1
         let overlayPresenter = RecordingOverlayPresenter()
         let coordinator = AppCoordinator(
             launchConfiguration: LaunchConfiguration(
@@ -505,14 +538,16 @@ final class KeyGlassHostedUITests: XCTestCase {
             ),
             settingsStore: settingsStore,
             permissionManager: StubInputPermissionManager(state: .granted),
-            eventTapService: ScriptedEventTapService(script: "keyDown:0:none;keyDown:1:none;keyDown:2:none"),
+            eventTapService: ScriptedEventTapService(
+                script: "keyDown:0:none:0.12;keyDown:1:none:1.12;keyDown:2:none:2.12"
+            ),
             launchAtLoginManager: StubLaunchAtLoginManager(),
             formatter: KeystrokeFormatter(),
             overlayWindowController: overlayPresenter
         )
 
         coordinator.toggleCaptureEnabled(true)
-        waitUntil(timeout: 5.0) {
+        waitUntil(timeout: 6.0) {
             coordinator.lastPresentedText == "d"
                 && overlayPresenter.lastEntries.map(\.text) == ["d", "s", "a"]
         }

@@ -44,43 +44,118 @@ struct OverlayScreenSnapshot: Equatable {
 }
 
 enum OverlayPlacementCalculator {
+    private static let screenInset: CGFloat = 24
+
     static func targetVisibleFrame(mouseLocation: CGPoint, screens: [OverlayScreenSnapshot]) -> CGRect? {
         screens.first(where: { $0.frame.contains(mouseLocation) })?.visibleFrame ?? screens.first?.visibleFrame
     }
 
+    static func targetVisibleFrame(for overlayFrame: CGRect, screens: [OverlayScreenSnapshot]) -> CGRect? {
+        let bestMatchingScreen = screens
+            .map { screen in
+                (screen: screen, intersectionArea: intersectionArea(between: overlayFrame, and: screen.frame))
+            }
+            .filter { $0.intersectionArea > 0 }
+            .max { $0.intersectionArea < $1.intersectionArea }?
+            .screen
+
+        if let bestMatchingScreen {
+            return bestMatchingScreen.visibleFrame
+        }
+
+        return targetVisibleFrame(
+            mouseLocation: CGPoint(x: overlayFrame.midX, y: overlayFrame.midY),
+            screens: screens
+        )
+    }
+
     static func origin(for anchor: OverlayAnchor, size: CGSize, visibleFrame: CGRect) -> CGPoint {
+        let requestedOrigin: CGPoint
+
         switch anchor {
         case .topCenter:
-            CGPoint(
+            requestedOrigin = CGPoint(
                 x: visibleFrame.midX - size.width / 2,
-                y: visibleFrame.maxY - size.height - 24
+                y: visibleFrame.maxY - size.height - screenInset
             )
         case .bottomCenter:
-            CGPoint(
+            requestedOrigin = CGPoint(
                 x: visibleFrame.midX - size.width / 2,
-                y: visibleFrame.minY + 24
+                y: visibleFrame.minY + screenInset
             )
         case .topLeft:
-            CGPoint(
-                x: visibleFrame.minX + 24,
-                y: visibleFrame.maxY - size.height - 24
+            requestedOrigin = CGPoint(
+                x: visibleFrame.minX + screenInset,
+                y: visibleFrame.maxY - size.height - screenInset
             )
         case .topRight:
-            CGPoint(
-                x: visibleFrame.maxX - size.width - 24,
-                y: visibleFrame.maxY - size.height - 24
+            requestedOrigin = CGPoint(
+                x: visibleFrame.maxX - size.width - screenInset,
+                y: visibleFrame.maxY - size.height - screenInset
             )
         case .bottomLeft:
-            CGPoint(
-                x: visibleFrame.minX + 24,
-                y: visibleFrame.minY + 24
+            requestedOrigin = CGPoint(
+                x: visibleFrame.minX + screenInset,
+                y: visibleFrame.minY + screenInset
             )
         case .bottomRight:
-            CGPoint(
-                x: visibleFrame.maxX - size.width - 24,
-                y: visibleFrame.minY + 24
+            requestedOrigin = CGPoint(
+                x: visibleFrame.maxX - size.width - screenInset,
+                y: visibleFrame.minY + screenInset
             )
         }
+
+        return clampedOrigin(requestedOrigin, size: size, visibleFrame: visibleFrame)
+    }
+
+    static func clampedOrigin(_ origin: CGPoint, size: CGSize, visibleFrame: CGRect) -> CGPoint {
+        CGPoint(
+            x: clampedCoordinate(
+                origin.x,
+                overlaySize: size.width,
+                visibleMin: visibleFrame.minX,
+                visibleMax: visibleFrame.maxX
+            ),
+            y: clampedCoordinate(
+                origin.y,
+                overlaySize: size.height,
+                visibleMin: visibleFrame.minY,
+                visibleMax: visibleFrame.maxY
+            )
+        )
+    }
+
+    private static func clampedCoordinate(
+        _ value: CGFloat,
+        overlaySize: CGFloat,
+        visibleMin: CGFloat,
+        visibleMax: CGFloat
+    ) -> CGFloat {
+        let insetMin = visibleMin + screenInset
+        let insetMax = visibleMax - overlaySize - screenInset
+
+        if insetMin <= insetMax {
+            return min(max(value, insetMin), insetMax)
+        }
+
+        let edgeMin = visibleMin
+        let edgeMax = visibleMax - overlaySize
+
+        if edgeMin <= edgeMax {
+            return min(max(value, edgeMin), edgeMax)
+        }
+
+        return visibleMin + (visibleMax - visibleMin - overlaySize) / 2
+    }
+
+    private static func intersectionArea(between lhs: CGRect, and rhs: CGRect) -> CGFloat {
+        let intersection = lhs.intersection(rhs)
+
+        guard !intersection.isNull, !intersection.isEmpty else {
+            return 0
+        }
+
+        return intersection.width * intersection.height
     }
 }
 
@@ -222,24 +297,35 @@ final class OverlayWindowController: OverlayPresenting {
     }
 
     private func updateWindowFrame(window: NSPanel, settings: OverlayPresentationSettings) {
-        if let customOrigin = settings.customOrigin {
-            window.setFrameOrigin(customOrigin)
-            return
-        }
-
         let size = window.frame.size
-        let screens = NSScreen.screens.map { screen in
-            OverlayScreenSnapshot(frame: screen.frame, visibleFrame: screen.visibleFrame)
+        let screens = currentScreens()
+        let origin: CGPoint
+
+        if let customOrigin = settings.customOrigin {
+            guard let visibleFrame = OverlayPlacementCalculator.targetVisibleFrame(
+                for: CGRect(origin: customOrigin, size: size),
+                screens: screens
+            ) else { return }
+            origin = OverlayPlacementCalculator.clampedOrigin(
+                customOrigin,
+                size: size,
+                visibleFrame: visibleFrame
+            )
+
+            if origin != customOrigin {
+                onPositionChange?(origin)
+            }
+        } else {
+            guard let visibleFrame = OverlayPlacementCalculator.targetVisibleFrame(
+                mouseLocation: NSEvent.mouseLocation,
+                screens: screens
+            ) else { return }
+            origin = OverlayPlacementCalculator.origin(
+                for: settings.overlayAnchor,
+                size: size,
+                visibleFrame: visibleFrame
+            )
         }
-        guard let visibleFrame = OverlayPlacementCalculator.targetVisibleFrame(
-            mouseLocation: NSEvent.mouseLocation,
-            screens: screens
-        ) else { return }
-        let origin = OverlayPlacementCalculator.origin(
-            for: settings.overlayAnchor,
-            size: size,
-            visibleFrame: visibleFrame
-        )
 
         window.setFrame(NSRect(origin: origin, size: size), display: true)
     }
@@ -251,6 +337,10 @@ final class OverlayWindowController: OverlayPresenting {
             entryView.setPaused(isDragging)
         }
 
+        if !isDragging {
+            clampWindowToVisibleFrameIfNeeded()
+        }
+
         onDraggingStateChange?(isDragging)
     }
 
@@ -258,6 +348,33 @@ final class OverlayWindowController: OverlayPresenting {
     private func handleWindowDidMove(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
         onPositionChange?(window.frame.origin)
+    }
+
+    private func currentScreens() -> [OverlayScreenSnapshot] {
+        NSScreen.screens.map { screen in
+            OverlayScreenSnapshot(frame: screen.frame, visibleFrame: screen.visibleFrame)
+        }
+    }
+
+    private func clampWindowToVisibleFrameIfNeeded() {
+        guard let window else { return }
+        guard let visibleFrame = OverlayPlacementCalculator.targetVisibleFrame(
+            for: window.frame,
+            screens: currentScreens()
+        ) else { return }
+
+        let clampedOrigin = OverlayPlacementCalculator.clampedOrigin(
+            window.frame.origin,
+            size: window.frame.size,
+            visibleFrame: visibleFrame
+        )
+
+        guard clampedOrigin != window.frame.origin else {
+            return
+        }
+
+        window.setFrameOrigin(clampedOrigin)
+        onPositionChange?(clampedOrigin)
     }
 }
 
