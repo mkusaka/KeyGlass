@@ -45,5 +45,13 @@
         <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
         <enclosure url="https://github.com/mkusaka/KeyGlass/releases/download/v0.0.10/KeyGlass.zip" sparkle:edSignature="rjncdK1oHTC39DfgOMQAHgeMsrJi//vOEVy/6REPSSUYnaB73YVLgU/u+Sh0M0DPhBXDYgkEtOyB+9wD2nj8DQ==" length="2147496" type="application/octet-stream"/>
     </item>
+    <item>
+        <title>Version 0.0.11</title>
+        <pubDate>Mon, 13 Apr 2026 18:03:36 +0000</pubDate>
+        <sparkle:version>11</sparkle:version>
+        <sparkle:shortVersionString>0.0.11</sparkle:shortVersionString>
+        <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+        <enclosure url="https://github.com/mkusaka/KeyGlass/releases/download/v0.0.11/KeyGlass.zip" sparkle:edSignature="e1rUrfmpGFbu6tWO8Se1XFLokiFKNHTqfSkdzMS87dkvcgfgSDDtx6P0P72rlQjskaFgQJjYlLanQq1tstCnCA==" length="2148137" type="application/octet-stream"/>
+    </item>
     </channel>
 </rss>
