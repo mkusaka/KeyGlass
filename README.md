@@ -85,6 +85,34 @@ KeyGlass currently shares the same Sparkle public key as `keypunch`, so `SPARKLE
 
 Manual `workflow_dispatch` runs validate archive, export, signing, notarization, and stapling without creating a GitHub Release, updating the Homebrew tap, or publishing the Sparkle appcast. Tag pushes matching `v*` also publish the release asset, update the tap cask, and deploy `appcast.xml` to the `gh-pages` branch. The first successful signed tag release is what makes `brew install --cask mkusaka/tap/keyglass` work end-to-end.
 
+### How To Cut A Release
+
+1. Merge the release target changes into `main` and confirm the `Test` workflow is green.
+2. Create and push a semantic version tag such as `v0.0.5`.
+
+```bash
+git tag v0.0.5
+git push origin v0.0.5
+```
+
+3. Wait for the `Release` workflow triggered by the tag push to finish.
+4. Verify that the workflow produced all downstream artifacts:
+- a signed `KeyGlass.zip` attached to the GitHub Release
+- a cask update dispatch to `mkusaka/homebrew-tap`
+- an updated `appcast.xml` on the `gh-pages` branch
+
+The workflow derives the release version from the tag name, so repository files do not need a manual version bump just for release publication.
+
+### How To Run A Validation Build
+
+Use `workflow_dispatch` on the `Release` workflow when you want to validate signing, notarization, and export without publishing a GitHub Release or updating Homebrew / Sparkle delivery.
+
+Enter the version you want to test, for example `0.0.5`. The workflow will:
+
+- set both `CFBundleShortVersionString` and `CFBundleVersion` from that version
+- build, sign, notarize, and export the app
+- skip GitHub Release creation, Homebrew dispatch, and `gh-pages` appcast deployment
+
 ## Development
 
 Build:
