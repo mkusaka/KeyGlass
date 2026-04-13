@@ -453,6 +453,7 @@ final class AppCoordinator: NSObject, ObservableObject {
 
     private func renderOverlayHistory() {
         rescheduleOverlayExpiryWorkItems()
+        guard overlayDragStartedAt == nil else { return }
         overlayWindowController.show(
             entries: overlayHistory,
             settings: OverlayPresentationSettings(from: settingsStore)

@@ -101,6 +101,14 @@ final class OverlayWindowController: OverlayPresenting {
         entryViews.map(\.displayedText)
     }
 
+    var testingEntryAlphas: [CGFloat] {
+        entryViews.map(\.alphaValue)
+    }
+
+    func testingSimulateDragStateChange(_ isDragging: Bool) {
+        handleDraggingStateChange(isDragging)
+    }
+
     func show(entries: [OverlayHistoryEntry], settings: OverlayPresentationSettings) {
         guard !entries.isEmpty else {
             clearEntries()
@@ -336,7 +344,9 @@ private final class OverlayEntryView: NSVisualEffectView {
 
         if paused {
             pendingFadeWorkItem?.cancel()
+            let snapshotAlpha = (layer?.presentation()?.opacity).map { CGFloat($0) } ?? alphaValue
             layer?.removeAllAnimations()
+            alphaValue = snapshotAlpha
             return
         }
 

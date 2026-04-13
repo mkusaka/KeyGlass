@@ -582,6 +582,72 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertTrue(overlayWindowController.testingDisplayedTexts.isEmpty)
     }
 
+    func testDragSuppressesNewOverlayEntriesUntilDrop() {
+        let settingsStore = SettingsStore(defaults: defaults)
+        settingsStore.fadeDelay = 10.0
+        settingsStore.fadeDuration = 1.0
+        let overlayWindowController = OverlayWindowController()
+        let coordinator = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: StubInputPermissionManager(state: .granted),
+            eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: overlayWindowController
+        )
+
+        coordinator.previewCommandK()
+        XCTAssertEqual(overlayWindowController.testingDisplayedTexts, ["⌘K"])
+
+        overlayWindowController.onDraggingStateChange?(true)
+
+        coordinator.previewShiftTab()
+        XCTAssertEqual(overlayWindowController.testingDisplayedTexts, ["⌘K"], "Overlay should not update during drag")
+
+        overlayWindowController.onDraggingStateChange?(false)
+        XCTAssertEqual(overlayWindowController.testingDisplayedTexts, ["⇧⇥", "⌘K"], "Overlay should reflect all entries after drag ends")
+    }
+
+    func testDragPreservesEntryAlphaMidFade() {
+        let settingsStore = SettingsStore(defaults: defaults)
+        settingsStore.fadeDelay = 0.05
+        settingsStore.fadeDuration = 10.0
+        let overlayWindowController = OverlayWindowController()
+        let _ = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: StubInputPermissionManager(state: .granted),
+            eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: overlayWindowController
+        )
+
+        overlayWindowController.show(
+            entries: [OverlayHistoryEntry(id: UUID(), text: "⌘K", updatedAt: Date(), mergeMode: .isolated)],
+            settings: OverlayPresentationSettings(from: settingsStore)
+        )
+
+        RunLoop.current.run(until: Date().addingTimeInterval(0.15))
+
+        overlayWindowController.testingSimulateDragStateChange(true)
+
+        let alphas = overlayWindowController.testingEntryAlphas
+        XCTAssertFalse(alphas.isEmpty)
+        XCTAssertGreaterThan(alphas[0], 0, "Entry alpha should not snap to 0 when drag pauses mid-fade")
+    }
+
     func testPermissionRequiredStatePreventsCaptureStart() {
         let settingsStore = SettingsStore(defaults: defaults)
         let coordinator = AppCoordinator(
