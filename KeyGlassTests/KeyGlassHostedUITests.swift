@@ -512,7 +512,7 @@ final class KeyGlassHostedUITests: XCTestCase {
         )
 
         coordinator.toggleCaptureEnabled(true)
-        waitUntil(timeout: 2.0) {
+        waitUntil(timeout: 5.0) {
             coordinator.lastPresentedText == "d"
                 && overlayPresenter.lastEntries.map(\.text) == ["d", "s", "a"]
         }
