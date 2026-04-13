@@ -70,36 +70,34 @@ enum OverlayPlacementCalculator {
     }
 
     static func origin(for anchor: OverlayAnchor, size: CGSize, visibleFrame: CGRect) -> CGPoint {
-        let requestedOrigin: CGPoint
-
-        switch anchor {
+        let requestedOrigin = switch anchor {
         case .topCenter:
-            requestedOrigin = CGPoint(
+            CGPoint(
                 x: visibleFrame.midX - size.width / 2,
                 y: visibleFrame.maxY - size.height - screenInset
             )
         case .bottomCenter:
-            requestedOrigin = CGPoint(
+            CGPoint(
                 x: visibleFrame.midX - size.width / 2,
                 y: visibleFrame.minY + screenInset
             )
         case .topLeft:
-            requestedOrigin = CGPoint(
+            CGPoint(
                 x: visibleFrame.minX + screenInset,
                 y: visibleFrame.maxY - size.height - screenInset
             )
         case .topRight:
-            requestedOrigin = CGPoint(
+            CGPoint(
                 x: visibleFrame.maxX - size.width - screenInset,
                 y: visibleFrame.maxY - size.height - screenInset
             )
         case .bottomLeft:
-            requestedOrigin = CGPoint(
+            CGPoint(
                 x: visibleFrame.minX + screenInset,
                 y: visibleFrame.minY + screenInset
             )
         case .bottomRight:
-            requestedOrigin = CGPoint(
+            CGPoint(
                 x: visibleFrame.maxX - size.width - screenInset,
                 y: visibleFrame.minY + screenInset
             )
