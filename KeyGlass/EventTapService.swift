@@ -210,7 +210,7 @@ final class ScriptedEventTapService: EventTapServicing {
             }
 
             pendingWorkItems.append(workItem)
-            let delay = 0.12 + (Double(index) * 0.08)
+            let delay = 0.12 + (Double(index) * 0.2)
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
         }
     }
