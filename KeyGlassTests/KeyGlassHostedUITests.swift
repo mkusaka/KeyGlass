@@ -619,7 +619,7 @@ final class KeyGlassHostedUITests: XCTestCase {
         settingsStore.fadeDelay = 0.05
         settingsStore.fadeDuration = 10.0
         let overlayWindowController = OverlayWindowController()
-        let _ = AppCoordinator(
+        _ = AppCoordinator(
             launchConfiguration: LaunchConfiguration(
                 isUITestMode: true,
                 shouldOpenSettingsOnLaunch: false,
