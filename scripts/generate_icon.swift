@@ -17,6 +17,7 @@ let iconSizes: [(Int, Int)] = [
 
 // MARK: - Drawing
 
+// swiftlint:disable function_body_length
 func drawIcon(in context: CGContext, size: CGFloat) {
     let bounds = CGRect(x: 0, y: 0, width: size, height: size)
 
@@ -116,7 +117,9 @@ func drawIcon(in context: CGContext, size: CGFloat) {
     context.fillPath()
     context.restoreGState()
 }
+// swiftlint:enable function_body_length
 
+// swiftlint:disable function_body_length function_parameter_count
 func drawKeycap(
     in context: CGContext,
     bodyRect: CGRect,
@@ -295,6 +298,7 @@ func drawKeycap(
         context.restoreGState()
     }
 }
+// swiftlint:enable function_body_length function_parameter_count
 
 // MARK: - Export
 
