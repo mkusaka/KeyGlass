@@ -109,7 +109,8 @@ Use `workflow_dispatch` on the `Release` workflow when you want to validate sign
 
 Enter the version you want to test, for example `0.0.5`. The workflow will:
 
-- set both `CFBundleShortVersionString` and `CFBundleVersion` from that version
+- set `CFBundleShortVersionString` from that version
+- derive `CFBundleVersion` as `major * 10000 + minor * 100 + patch` (for `0.0.5`, build version is `5`)
 - build, sign, notarize, and export the app
 - skip GitHub Release creation, Homebrew dispatch, and `gh-pages` appcast deployment
 
