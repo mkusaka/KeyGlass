@@ -689,6 +689,37 @@ final class KeyGlassHostedUITests: XCTestCase {
         XCTAssertGreaterThan(alphas[0], 0, "Entry alpha should not snap to 0 when drag pauses mid-fade")
     }
 
+    func testLongOverlayTextWrapsByGrowingEntryHeight() throws {
+        let settingsStore = SettingsStore(defaults: defaults)
+        settingsStore.fadeDelay = 10.0
+        settingsStore.fadeDuration = 1.0
+        let overlayWindowController = OverlayWindowController()
+        _ = AppCoordinator(
+            launchConfiguration: LaunchConfiguration(
+                isUITestMode: true,
+                shouldOpenSettingsOnLaunch: false,
+                shouldResetDefaults: false,
+                defaultsSuiteName: "KeyGlassHostedUITests"
+            ),
+            settingsStore: settingsStore,
+            permissionManager: StubInputPermissionManager(state: .granted),
+            eventTapService: NoOpEventTapService(),
+            launchAtLoginManager: StubLaunchAtLoginManager(),
+            formatter: KeystrokeFormatter(),
+            overlayWindowController: overlayWindowController
+        )
+
+        let longText = String(repeating: "⌘⇧A", count: 48)
+        overlayWindowController.show(
+            entries: [OverlayHistoryEntry(id: UUID(), text: longText, updatedAt: Date(), mergeMode: .isolated)],
+            settings: OverlayPresentationSettings(from: settingsStore)
+        )
+
+        let window = try XCTUnwrap(overlayWindowController.testingWindow)
+        XCTAssertGreaterThan(window.frame.height, 54)
+        XCTAssertEqual(overlayWindowController.testingDisplayedTexts.first, longText)
+    }
+
     func testPermissionRequiredStatePreventsCaptureStart() {
         let settingsStore = SettingsStore(defaults: defaults)
         let coordinator = AppCoordinator(

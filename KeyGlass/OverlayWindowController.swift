@@ -377,6 +377,12 @@ final class OverlayWindowController: OverlayPresenting {
 }
 
 private final class OverlayEntryView: NSVisualEffectView {
+    private static let minWidth: CGFloat = 140
+    private static let maxWidth: CGFloat = 420
+    private static let minHeight: CGFloat = 54
+    private static let horizontalPadding: CGFloat = 40
+    private static let verticalPadding: CGFloat = 28
+
     private let label = NSTextField(labelWithString: "")
     private var pendingFadeWorkItem: DispatchWorkItem?
     private var currentEntry: OverlayHistoryEntry?
@@ -428,12 +434,15 @@ private final class OverlayEntryView: NSVisualEffectView {
             weight: isLatest ? .semibold : .medium
         )
         label.textColor = .white.withAlphaComponent(isLatest ? 1.0 : 0.92)
-        label.sizeToFit()
-
-        let contentSize = label.fittingSize
+        let naturalContentSize = measuredLabelSize(constrainedTo: nil)
+        let preferredWidth = min(
+            max(naturalContentSize.width + Self.horizontalPadding, Self.minWidth),
+            Self.maxWidth
+        )
+        let contentSize = measuredLabelSize(constrainedTo: preferredWidth - Self.horizontalPadding)
         preferredSize = CGSize(
-            width: min(max(contentSize.width + 40, 140), 420),
-            height: max(contentSize.height + 28, 54)
+            width: preferredWidth,
+            height: max(contentSize.height + Self.verticalPadding, Self.minHeight)
         )
 
         if paused {
@@ -445,12 +454,13 @@ private final class OverlayEntryView: NSVisualEffectView {
     }
 
     func applyLayout(width: CGFloat) {
+        let labelSize = measuredLabelSize(constrainedTo: width - Self.horizontalPadding)
         frame.size = CGSize(width: width, height: preferredSize.height)
         label.frame = CGRect(
-            x: 20,
-            y: (preferredSize.height - label.fittingSize.height) / 2,
-            width: width - 40,
-            height: label.fittingSize.height
+            x: Self.horizontalPadding / 2,
+            y: (preferredSize.height - labelSize.height) / 2,
+            width: width - Self.horizontalPadding,
+            height: labelSize.height
         )
     }
 
@@ -470,8 +480,26 @@ private final class OverlayEntryView: NSVisualEffectView {
 
     private func setup() {
         label.alignment = .center
-        label.lineBreakMode = .byTruncatingMiddle
+        label.lineBreakMode = .byCharWrapping
+        label.maximumNumberOfLines = 0
+        label.cell?.wraps = true
+        label.cell?.isScrollable = false
+        label.cell?.usesSingleLineMode = false
         addSubview(label)
+    }
+
+    private func measuredLabelSize(constrainedTo width: CGFloat?) -> CGSize {
+        let maxWidth = width ?? .greatestFiniteMagnitude
+        let boundingSize = CGSize(width: maxWidth, height: .greatestFiniteMagnitude)
+        let rect = label.attributedStringValue.boundingRect(
+            with: boundingSize,
+            options: [.usesLineFragmentOrigin, .usesFontLeading]
+        )
+
+        return CGSize(
+            width: ceil(rect.width),
+            height: ceil(rect.height)
+        )
     }
 
     private func applyFadeSchedule() {
