@@ -131,7 +131,8 @@ jobs:
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             ENABLE_HARDENED_RUNTIME=YES \
             OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
-            MARKETING_VERSION="$VERSION"
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="$VERSION"
 
       - name: Export signed app
         run: |
@@ -156,6 +157,22 @@ jobs:
             -archivePath build/KeyGlass.xcarchive \
             -exportPath build/export \
             -exportOptionsPlist build/ExportOptions.plist
+
+      - name: Verify exported bundle versions
+        run: |
+          PLIST="build/export/KeyGlass.app/Contents/Info.plist"
+          ACTUAL_SHORT_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")
+          ACTUAL_BUILD_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")
+
+          if [[ "$ACTUAL_SHORT_VERSION" != "$VERSION" ]]; then
+            echo "::error::Expected CFBundleShortVersionString=$VERSION, got $ACTUAL_SHORT_VERSION"
+            exit 1
+          fi
+
+          if [[ "$ACTUAL_BUILD_VERSION" != "$VERSION" ]]; then
+            echo "::error::Expected CFBundleVersion=$VERSION, got $ACTUAL_BUILD_VERSION"
+            exit 1
+          fi
 
       - name: Verify signed app
         run: |
