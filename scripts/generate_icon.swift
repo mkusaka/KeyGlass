@@ -117,6 +117,7 @@ func drawIcon(in context: CGContext, size: CGFloat) {
     context.fillPath()
     context.restoreGState()
 }
+
 // swiftlint:enable function_body_length
 
 // swiftlint:disable function_body_length function_parameter_count
@@ -298,6 +299,7 @@ func drawKeycap(
         context.restoreGState()
     }
 }
+
 // swiftlint:enable function_body_length function_parameter_count
 
 // MARK: - Export
