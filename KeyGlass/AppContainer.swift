@@ -15,15 +15,18 @@ final class AppContainer {
         let permissionManager: InputPermissionManaging
         let eventTapService: EventTapServicing
         let launchAtLoginManager: LaunchAtLoginManaging
+        let sensitiveInputDetector: SensitiveInputDetecting
 
         if launchConfiguration.isUITestMode {
             permissionManager = StubInputPermissionManager(state: .granted)
             eventTapService = ScriptedEventTapService(script: launchConfiguration.uiTestCaptureScript)
             launchAtLoginManager = StubLaunchAtLoginManager()
+            sensitiveInputDetector = NoOpSensitiveInputDetector()
         } else {
             permissionManager = SystemInputPermissionManager()
             eventTapService = SystemEventTapService()
             launchAtLoginManager = SystemLaunchAtLoginManager()
+            sensitiveInputDetector = SystemSensitiveInputDetector()
         }
 
         if let initialDisplayMode = launchConfiguration.initialDisplayModeOverride {
@@ -56,6 +59,7 @@ final class AppContainer {
             permissionManager: permissionManager,
             eventTapService: eventTapService,
             launchAtLoginManager: launchAtLoginManager,
+            sensitiveInputDetector: sensitiveInputDetector,
             formatter: formatter,
             overlayWindowController: overlayWindowController
         )
