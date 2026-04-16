@@ -791,6 +791,30 @@ final class KeyGlassHostedUITests: XCTestCase {
         )
     }
 
+    func testSensitiveInputSuppressionBehavesLikeNoInput() {
+        let overlayPresenter = RecordingOverlayPresenter()
+        let coordinator = makeCoordinator(
+            overlayPresenter: overlayPresenter,
+            eventTapService: ScriptedEventTapService(script: "keyDown:0:none"),
+            sensitiveInputDetector: StubSensitiveInputDetector(reason: .secureEventInput)
+        )
+
+        coordinator.previewCommandK()
+        XCTAssertEqual(coordinator.lastPresentedText, "⌘K")
+        XCTAssertEqual(overlayPresenter.lastText, "⌘K")
+
+        coordinator.toggleCaptureEnabled(true)
+        waitUntil {
+            coordinator.captureStatusDescription == "Running"
+        }
+
+        XCTAssertEqual(coordinator.lastPresentedText, "⌘K")
+        XCTAssertEqual(coordinator.liveCaptureDiagnostics.keyDownCount, 0)
+        XCTAssertEqual(coordinator.liveCaptureDiagnostics.lastEventSummary, "No live input yet")
+        XCTAssertEqual(overlayPresenter.lastEntries.map(\.text), ["⌘K"])
+        XCTAssertNil(coordinator.liveCaptureHint)
+    }
+
     func testDiagnosticsStillCountFilteredPlainKeyInput() {
         let settingsStore = SettingsStore(defaults: defaults)
         settingsStore.displayMode = .modifiedKeys
@@ -824,7 +848,8 @@ final class KeyGlassHostedUITests: XCTestCase {
     private func makeCoordinator(
         overlayPresenter: OverlayPresenting = RecordingOverlayPresenter(),
         formatter: KeystrokeFormatter? = nil,
-        eventTapService: EventTapServicing = NoOpEventTapService()
+        eventTapService: EventTapServicing = NoOpEventTapService(),
+        sensitiveInputDetector: SensitiveInputDetecting? = nil
     ) -> AppCoordinator {
         AppCoordinator(
             launchConfiguration: LaunchConfiguration(
@@ -837,6 +862,7 @@ final class KeyGlassHostedUITests: XCTestCase {
             permissionManager: StubInputPermissionManager(state: .granted),
             eventTapService: eventTapService,
             launchAtLoginManager: StubLaunchAtLoginManager(),
+            sensitiveInputDetector: sensitiveInputDetector,
             formatter: formatter ?? KeystrokeFormatter(),
             overlayWindowController: overlayPresenter
         )

@@ -17,6 +17,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     private let permissionManager: InputPermissionManaging
     private let eventTapService: EventTapServicing
     private let launchAtLoginManager: LaunchAtLoginManaging
+    private let sensitiveInputDetector: SensitiveInputDetecting
     private let formatter: KeystrokeFormatter
     private let overlayWindowController: OverlayPresenting
     private let openExternalURL: (URL) -> Bool
@@ -29,6 +30,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     private var overlayHistory: [OverlayHistoryEntry] = []
     private var pendingOverlayExpiryWorkItems: [UUID: DispatchWorkItem] = [:]
     private var overlayDragStartedAt: Date?
+    private var activeSensitiveInputSuppressionReason: SensitiveInputSuppressionReason?
     private let logger = Logger(subsystem: "com.mkusaka.KeyGlass", category: "AppCoordinator")
 
     init(
@@ -37,6 +39,7 @@ final class AppCoordinator: NSObject, ObservableObject {
         permissionManager: InputPermissionManaging,
         eventTapService: EventTapServicing,
         launchAtLoginManager: LaunchAtLoginManaging,
+        sensitiveInputDetector: SensitiveInputDetecting? = nil,
         formatter: KeystrokeFormatter,
         overlayWindowController: OverlayPresenting,
         openExternalURL: @escaping (URL) -> Bool = { url in
@@ -48,6 +51,7 @@ final class AppCoordinator: NSObject, ObservableObject {
         self.permissionManager = permissionManager
         self.eventTapService = eventTapService
         self.launchAtLoginManager = launchAtLoginManager
+        self.sensitiveInputDetector = sensitiveInputDetector ?? NoOpSensitiveInputDetector()
         self.formatter = formatter
         self.overlayWindowController = overlayWindowController
         self.openExternalURL = openExternalURL
@@ -362,6 +366,7 @@ final class AppCoordinator: NSObject, ObservableObject {
             logger.notice("syncCaptureState stopping capture because captureEnabled is false")
             eventTapService.stop()
             resetLiveCaptureDiagnostics()
+            resetSensitiveInputSuppressionState()
             clearOverlayHistory()
             captureRuntimeState = .stopped
             rebuildStatusMenu()
@@ -372,6 +377,7 @@ final class AppCoordinator: NSObject, ObservableObject {
             logger.notice("syncCaptureState cannot start capture because permission is required")
             eventTapService.stop()
             resetLiveCaptureDiagnostics()
+            resetSensitiveInputSuppressionState()
             clearOverlayHistory()
             captureRuntimeState = .permissionRequired
             rebuildStatusMenu()
@@ -379,6 +385,7 @@ final class AppCoordinator: NSObject, ObservableObject {
         }
 
         resetLiveCaptureDiagnostics()
+        resetSensitiveInputSuppressionState()
 
         do {
             logger.notice("syncCaptureState starting event tap")
@@ -430,12 +437,40 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     private func handleLiveCapturedInput(_ capturedInput: CapturedInput) {
+        if suppressLivePreviewIfNeeded() {
+            return
+        }
+
         liveCaptureDiagnostics.record(capturedInput)
         presentCapturedInput(capturedInput)
     }
 
     private func resetLiveCaptureDiagnostics() {
         liveCaptureDiagnostics = LiveCaptureDiagnostics()
+    }
+
+    private func resetSensitiveInputSuppressionState() {
+        activeSensitiveInputSuppressionReason = nil
+    }
+
+    private func suppressLivePreviewIfNeeded() -> Bool {
+        guard let reason = sensitiveInputDetector.currentSuppressionReason() else {
+            if let previousReason = activeSensitiveInputSuppressionReason {
+                logger.notice(
+                    "live preview suppression ended reason=\(previousReason.rawValue, privacy: .public)"
+                )
+            }
+
+            activeSensitiveInputSuppressionReason = nil
+            return false
+        }
+
+        if activeSensitiveInputSuppressionReason != reason {
+            logger.notice("live preview suppressed reason=\(reason.rawValue, privacy: .public)")
+        }
+
+        activeSensitiveInputSuppressionReason = reason
+        return true
     }
 
     private func mergeMode(for capturedInput: CapturedInput) -> OverlayEntryMergeMode {
