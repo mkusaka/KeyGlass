@@ -34,6 +34,7 @@ struct OverlayPresentationSettings {
     }
 }
 
+@MainActor
 protocol OverlayPresenting: AnyObject {
     func show(entries: [OverlayHistoryEntry], settings: OverlayPresentationSettings)
 }
@@ -157,6 +158,7 @@ enum OverlayPlacementCalculator {
     }
 }
 
+@MainActor
 final class OverlayWindowController: OverlayPresenting {
     var onPositionChange: ((CGPoint) -> Void)?
     var onDraggingStateChange: ((Bool) -> Void)?
@@ -242,6 +244,7 @@ final class OverlayWindowController: OverlayPresenting {
 
     private func clearEntries() {
         for entryView in entryViews {
+            entryView.cancelPendingFade()
             entryView.removeFromSuperview()
         }
         entryViews.removeAll()
@@ -404,10 +407,6 @@ private final class OverlayEntryView: NSVisualEffectView {
         setup()
     }
 
-    deinit {
-        pendingFadeWorkItem?.cancel()
-    }
-
     override var mouseDownCanMoveWindow: Bool {
         true
     }
@@ -468,7 +467,7 @@ private final class OverlayEntryView: NSVisualEffectView {
         guard currentEntry != nil, currentSettings != nil else { return }
 
         if paused {
-            pendingFadeWorkItem?.cancel()
+            cancelPendingFade()
             let snapshotAlpha = (layer?.presentation()?.opacity).map { CGFloat($0) } ?? alphaValue
             layer?.removeAllAnimations()
             alphaValue = snapshotAlpha
@@ -476,6 +475,11 @@ private final class OverlayEntryView: NSVisualEffectView {
         }
 
         applyFadeSchedule()
+    }
+
+    func cancelPendingFade() {
+        pendingFadeWorkItem?.cancel()
+        pendingFadeWorkItem = nil
     }
 
     private func setup() {

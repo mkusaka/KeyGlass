@@ -4,24 +4,32 @@ import XCTest
 
 @MainActor
 final class KeyGlassHostedUITests: XCTestCase {
-    private var defaults: UserDefaults!
+    private nonisolated static let defaultsSuiteName = "KeyGlassHostedUITests"
 
-    override func setUpWithError() throws {
-        let suiteName = "KeyGlassHostedUITests"
-        defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-        defaults.synchronize()
+    private var defaults: UserDefaults {
+        UserDefaults(suiteName: Self.defaultsSuiteName)!
     }
 
-    override func tearDownWithError() throws {
-        defaults.removePersistentDomain(forName: "KeyGlassHostedUITests")
-        defaults = nil
+    override nonisolated func setUpWithError() throws {
+        Self.resetDefaults()
+    }
 
-        NSApp.windows
-            .filter { $0.title == "KeyGlass" }
-            .forEach { window in
-                window.close()
-            }
+    override nonisolated func tearDownWithError() throws {
+        Self.resetDefaults()
+
+        MainActor.assumeIsolated {
+            NSApp.windows
+                .filter { $0.title == "KeyGlass" }
+                .forEach { window in
+                    window.close()
+                }
+        }
+    }
+
+    private nonisolated static func resetDefaults() {
+        let defaults = UserDefaults(suiteName: defaultsSuiteName)!
+        defaults.removePersistentDomain(forName: defaultsSuiteName)
+        defaults.synchronize()
     }
 
     func testSettingsWindowOpensFromCoordinator() {
@@ -891,6 +899,7 @@ final class KeyGlassHostedUITests: XCTestCase {
     }
 }
 
+@MainActor
 private final class RecordingOverlayPresenter: OverlayPresenting {
     private(set) var lastEntries: [OverlayHistoryEntry] = []
     private(set) var lastSettings: OverlayPresentationSettings?

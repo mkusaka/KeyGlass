@@ -26,8 +26,10 @@ final class SystemKeyTranslator: KeyTranslating {
     }
 
     deinit {
-        if let selectedInputSourceObserver {
-            DistributedNotificationCenter.default().removeObserver(selectedInputSourceObserver)
+        MainActor.assumeIsolated {
+            if let selectedInputSourceObserver {
+                DistributedNotificationCenter.default().removeObserver(selectedInputSourceObserver)
+            }
         }
     }
 

@@ -165,10 +165,9 @@ final class AppCoordinator: NSObject, ObservableObject {
 
                 if launchConfiguration.isUITestMode {
                     NSApp.activate(ignoringOtherApps: true)
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                } else {
-                    openSettings()
                 }
+
+                openSettings()
             }
         }
     }

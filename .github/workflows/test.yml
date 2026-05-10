@@ -13,12 +13,19 @@ concurrency:
 
 permissions: {}
 
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+
 jobs:
   lint:
-    name: Lint
-    runs-on: macos-15
+    name: Lint (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, macos-15]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -29,6 +36,11 @@ jobs:
           version: 2026.3.9
           cache: true
 
+      - name: Show Swift toolchain
+        run: |
+          xcrun swift --version
+          xcodebuild -version
+
       - name: SwiftFormat check
         run: mise exec -- swiftformat --lint .
 
@@ -36,19 +48,28 @@ jobs:
         run: mise exec -- swiftlint lint --quiet
 
   unit-test:
-    name: Unit Tests
-    runs-on: macos-15
+    name: Unit Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, macos-15]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - name: Run hosted tests
+      - name: Show Swift toolchain
+        run: |
+          xcrun swift --version
+          xcodebuild -version
+
+      - name: Run tests
         run: |
           xcodebuild -project KeyGlass.xcodeproj \
             -scheme KeyGlass \
             -destination 'platform=macOS' \
-            -skip-testing:KeyGlassUITests \
+            CODE_SIGN_IDENTITY=- \
             test
