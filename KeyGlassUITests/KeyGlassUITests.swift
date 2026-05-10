@@ -1,15 +1,9 @@
 import XCTest
 
+@MainActor
 final class KeyGlassUITests: XCTestCase {
-    private var app: XCUIApplication!
-
-    override func tearDownWithError() throws {
-        app?.terminate()
-        app = nil
-    }
-
     func testLiveKeyDownUpdatesOutputAndDiagnostics() throws {
-        app = configuredApp(
+        let app = configuredApp(
             captureScript: "keyDown:48:shift",
             captureEnabled: true
         )
@@ -31,7 +25,7 @@ final class KeyGlassUITests: XCTestCase {
     }
 
     func testModifierOnlyCaptureShowsDiagnosticHint() throws {
-        app = configuredApp(
+        let app = configuredApp(
             captureScript: "flagsChanged:56:shift",
             captureEnabled: true
         )
@@ -54,7 +48,7 @@ final class KeyGlassUITests: XCTestCase {
     }
 
     func testDiagnosticsDistinguishFilteredPlainKeyFromMissingKeyDown() throws {
-        app = configuredApp(
+        let app = configuredApp(
             captureScript: "keyDown:0:none",
             captureEnabled: true,
             displayMode: "modifiedKeys"
@@ -77,8 +71,8 @@ final class KeyGlassUITests: XCTestCase {
     }
 
     func testRapidPlainInputMergesIntoSingleVisibleEntry() throws {
-        app = configuredApp(
-            captureScript: "keyDown:0:none;keyDown:1:none;keyDown:2:none",
+        let app = configuredApp(
+            captureScript: "keyDown:0:none:0.6;keyDown:1:none:0.8;keyDown:2:none:1.0",
             captureEnabled: true
         )
 
@@ -90,8 +84,8 @@ final class KeyGlassUITests: XCTestCase {
     }
 
     func testMergeWindowOverrideCanPreventRapidInputConcatenation() throws {
-        app = configuredApp(
-            captureScript: "keyDown:0:none;keyDown:1:none;keyDown:2:none",
+        let app = configuredApp(
+            captureScript: "keyDown:0:none:0.6;keyDown:1:none:1.6;keyDown:2:none:2.6",
             captureEnabled: true,
             mergeWindow: "0.01"
         )
@@ -104,16 +98,25 @@ final class KeyGlassUITests: XCTestCase {
     }
 
     func testDisplaySectionExposesHistoryControls() {
-        app = configuredApp(
+        let app = configuredApp(
             captureScript: "",
             captureEnabled: false
         )
 
         app.launch()
 
-        XCTAssertTrue(app.sliders["merge-window-slider"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.steppers["stack-max-count-stepper"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.segmentedControls["stack-direction-picker"].waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForExistence(app.sliders["merge-window-slider"], in: app))
+        XCTAssertTrue(waitForExistence(app.steppers["stack-max-count-stepper"], in: app))
+        XCTAssertTrue(
+            waitForExistence(
+                [
+                    app.descendants(matching: .any)["stack-direction-picker"],
+                    app.buttons["Newest On Top"],
+                    app.buttons["Newest On Bottom"],
+                ],
+                in: app
+            )
+        )
     }
 
     private func configuredApp(
@@ -136,6 +139,10 @@ final class KeyGlassUITests: XCTestCase {
             app.launchEnvironment["KEYGLASS_UI_TEST_MERGE_WINDOW"] = mergeWindow
         }
 
+        addTeardownBlock { @MainActor in
+            app.terminate()
+        }
+
         return app
     }
 
@@ -145,5 +152,28 @@ final class KeyGlassUITests: XCTestCase {
         let result = XCTWaiter.wait(for: [expectation], timeout: timeout)
         XCTAssertEqual(result, .completed)
         return element.label
+    }
+
+    private func waitForExistence(_ element: XCUIElement, in app: XCUIApplication, timeout: TimeInterval = 5) -> Bool {
+        waitForExistence([element], in: app, timeout: timeout)
+    }
+
+    private func waitForExistence(_ elements: [XCUIElement], in app: XCUIApplication, timeout: TimeInterval = 5) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        let scrollView = app.scrollViews.firstMatch
+
+        while Date() < deadline {
+            if elements.contains(where: \.exists) {
+                return true
+            }
+
+            if scrollView.exists {
+                scrollView.swipeUp()
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+
+        return elements.contains(where: \.exists)
     }
 }

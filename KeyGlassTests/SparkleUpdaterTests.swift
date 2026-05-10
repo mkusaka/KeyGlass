@@ -62,6 +62,7 @@ final class SparkleUpdaterTests: XCTestCase {
     }
 }
 
+@MainActor
 private final class NullOverlayPresenter: OverlayPresenting {
     func show(entries _: [OverlayHistoryEntry], settings _: OverlayPresentationSettings) {}
 }

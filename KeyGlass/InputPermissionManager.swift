@@ -46,11 +46,7 @@ struct SystemInputPermissionManager: InputPermissionManaging {
     private let logger = Logger(subsystem: "com.mkusaka.KeyGlass", category: "InputPermission")
 
     func currentState() -> InputPermissionState {
-        let state: InputPermissionState = if #available(macOS 10.15, *) {
-            CGPreflightListenEventAccess() ? .granted : .requiresApproval
-        } else {
-            AXIsProcessTrusted() ? .granted : .requiresApproval
-        }
+        let state: InputPermissionState = CGPreflightListenEventAccess() ? .granted : .requiresApproval
 
         logger.notice("currentState -> \(state.description, privacy: .public)")
         return state
@@ -59,14 +55,8 @@ struct SystemInputPermissionManager: InputPermissionManaging {
     func requestAccess() -> InputPermissionState {
         logger.notice("requestAccess started")
 
-        if #available(macOS 10.15, *) {
-            let requestResult = CGRequestListenEventAccess()
-            logger.notice("CGRequestListenEventAccess returned \(requestResult, privacy: .public)")
-        } else {
-            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-            let requestResult = AXIsProcessTrustedWithOptions(options)
-            logger.notice("AXIsProcessTrustedWithOptions returned \(requestResult, privacy: .public)")
-        }
+        let requestResult = CGRequestListenEventAccess()
+        logger.notice("CGRequestListenEventAccess returned \(requestResult, privacy: .public)")
 
         let state = currentState()
         logger.notice("requestAccess finished state=\(state.description, privacy: .public)")
