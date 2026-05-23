@@ -1,27 +1,21 @@
 name: Test
-
 on:
   workflow_call:
   push:
     tags-ignore:
       - 'v*'
   pull_request:
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 permissions: {}
-
 env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
-
 jobs:
   lint:
     name: Lint (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    permissions:
-      contents: read
+    permissions: {}
     strategy:
       fail-fast: false
       matrix:
@@ -30,28 +24,23 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-
       - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
         with:
           version: 2026.3.9
-          cache: true
-
+          cache: false
       - name: Show Swift toolchain
         run: |
           xcrun swift --version
           xcodebuild -version
-
       - name: SwiftFormat check
         run: mise exec -- swiftformat --lint .
-
       - name: SwiftLint check
         run: mise exec -- swiftlint lint --quiet
-
+    timeout-minutes: 60
   unit-test:
     name: Unit Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    permissions:
-      contents: read
+    permissions: {}
     strategy:
       fail-fast: false
       matrix:
@@ -60,12 +49,10 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-
       - name: Show Swift toolchain
         run: |
           xcrun swift --version
           xcodebuild -version
-
       - name: Run tests
         run: |
           xcodebuild -project KeyGlass.xcodeproj \
@@ -73,3 +60,4 @@ jobs:
             -destination 'platform=macOS' \
             CODE_SIGN_IDENTITY=- \
             test
+    timeout-minutes: 60
