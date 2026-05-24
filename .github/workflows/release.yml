@@ -1,5 +1,4 @@
 name: Release
-
 on:
   push:
     tags:
@@ -11,16 +10,12 @@ on:
         required: false
         default: '0.0.0'
         type: string
-
 permissions: {}
-
 jobs:
   test:
     name: Test
     uses: ./.github/workflows/test.yml
-    permissions:
-      contents: read
-
+    permissions: {}
   release:
     name: Build & Release
     needs: test
@@ -41,7 +36,6 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-
       - name: Set version
         env:
           DISPATCH_VERSION: ${{ inputs.version }}
@@ -65,7 +59,6 @@ jobs:
 
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "BUILD_VERSION=$BUILD_VERSION" >> "$GITHUB_ENV"
-
       - name: Validate signing secrets
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
@@ -91,7 +84,6 @@ jobs:
               exit 1
             fi
           done
-
       - name: Install signing assets
         run: |
           mkdir -p build
@@ -126,7 +118,6 @@ jobs:
             echo "DEVELOPER_ID_P12_PATH=$DEVELOPER_ID_P12_PATH"
             echo "APP_STORE_CONNECT_KEY_PATH=$APP_STORE_CONNECT_KEY_PATH"
           } >> "$GITHUB_ENV"
-
       - name: Archive
         run: |
           xcodebuild archive \
@@ -140,7 +131,6 @@ jobs:
             OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
             MARKETING_VERSION="$VERSION" \
             CURRENT_PROJECT_VERSION="$BUILD_VERSION"
-
       - name: Export signed app
         run: |
           cat > build/ExportOptions.plist <<EOF
@@ -164,7 +154,6 @@ jobs:
             -archivePath build/KeyGlass.xcarchive \
             -exportPath build/export \
             -exportOptionsPlist build/ExportOptions.plist
-
       - name: Verify exported bundle versions
         run: |
           PLIST="build/export/KeyGlass.app/Contents/Info.plist"
@@ -180,11 +169,9 @@ jobs:
             echo "::error::Expected CFBundleVersion=$BUILD_VERSION, got $ACTUAL_BUILD_VERSION"
             exit 1
           fi
-
       - name: Verify signed app
         run: |
           codesign --verify --deep --strict --verbose=2 build/export/KeyGlass.app
-
       - name: Notarize app
         run: |
           ditto -c -k --keepParent build/export/KeyGlass.app build/KeyGlass.notarization.zip
@@ -195,22 +182,18 @@ jobs:
             --issuer "$APPLE_APP_STORE_CONNECT_ISSUER_ID" \
             --timeout 1h \
             --wait
-
       - name: Staple notarization ticket
         run: |
           xcrun stapler staple -v build/export/KeyGlass.app
           xcrun stapler validate -v build/export/KeyGlass.app
           spctl --assess --type execute --verbose=4 build/export/KeyGlass.app
-
       - name: Create release ZIP
         run: |
           ditto -c -k --keepParent build/export/KeyGlass.app KeyGlass.zip
-
       - name: Compute SHA256
         run: |
           SHA256=$(shasum -a 256 KeyGlass.zip | awk '{print $1}')
           echo "SHA256=$SHA256" >> "$GITHUB_ENV"
-
       - name: Download Sparkle tools
         if: github.event_name != 'workflow_dispatch'
         env:
@@ -220,7 +203,6 @@ jobs:
             --pattern 'Sparkle-*.tar.xz' -D "$RUNNER_TEMP"
           mkdir -p "$RUNNER_TEMP/sparkle-tools"
           tar -xf "$RUNNER_TEMP"/Sparkle-*.tar.xz -C "$RUNNER_TEMP/sparkle-tools"
-
       - name: Sign release ZIP with Sparkle EdDSA
         if: github.event_name != 'workflow_dispatch'
         env:
@@ -236,7 +218,6 @@ jobs:
 
           echo "SPARKLE_ED_SIGNATURE=$ED_SIGNATURE" >> "$GITHUB_ENV"
           echo "SPARKLE_FILE_LENGTH=$FILE_LENGTH" >> "$GITHUB_ENV"
-
       - name: Publish GitHub release asset
         if: github.event_name != 'workflow_dispatch'
         env:
@@ -250,7 +231,6 @@ jobs:
               --title "KeyGlass $GITHUB_REF_NAME" \
               --generate-notes
           fi
-
       - name: Update Homebrew tap
         if: github.event_name != 'workflow_dispatch'
         env:
@@ -261,7 +241,6 @@ jobs:
             -f "client_payload[cask]=keyglass" \
             -f "client_payload[version]=$VERSION" \
             -f "client_payload[sha256]=$SHA256"
-
       - name: Update Sparkle appcast
         if: github.event_name != 'workflow_dispatch'
         run: |
@@ -304,7 +283,6 @@ jobs:
               printf '%s\n' "$line"
             done
           } < existing_appcast.xml > appcast.xml
-
       - name: Deploy appcast to GitHub Pages
         if: github.event_name != 'workflow_dispatch'
         env:
@@ -331,7 +309,6 @@ jobs:
           git diff --cached --quiet && echo "No changes" && exit 0
           git commit -m "Update appcast for ${GITHUB_REF_NAME}"
           git push origin gh-pages
-
       - name: Cleanup signing assets
         if: always()
         run: |
@@ -340,3 +317,4 @@ jobs:
           if [[ -n "${KEYCHAIN_PATH:-}" ]]; then
             security delete-keychain "$KEYCHAIN_PATH" || true
           fi
+    environment: release
