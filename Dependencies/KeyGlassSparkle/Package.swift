@@ -16,7 +16,7 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/sparkle-project/Sparkle",
-            from: "2.9.0"
+            from: "2.9.3"
         ),
     ],
     targets: [
