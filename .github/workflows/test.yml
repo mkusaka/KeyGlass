@@ -2,8 +2,7 @@ name: Test
 on:
   workflow_call:
   push:
-    tags-ignore:
-      - 'v*'
+    branches: [main]
   pull_request:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
